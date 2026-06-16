@@ -39,6 +39,7 @@ MusicLibrary *library_new();
 void library_free(MusicLibrary *lib);
 void library_scan(MusicLibrary *lib, const char *root_path, volatile int *scanned_counter);
 Album *library_find_album(MusicLibrary *lib, const char *artist, const char *album_name);
+GList *library_get_recent_albums(MusicLibrary *lib, int limit);
 
 // Config Functions
 PlayerConfig *config_load();

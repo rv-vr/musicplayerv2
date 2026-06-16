@@ -5,6 +5,10 @@
 #include <QStandardItemModel>
 #include <QTimer>
 #include <QProcess>
+#include <QHBoxLayout>
+#include <QGridLayout>
+#include <QResizeEvent>
+#include <QFrame>
 #include <QDir>
 #include <QHash>
 #include <QList>
@@ -50,6 +54,18 @@ private:
     volatile int *m_total_counter;
 };
 
+class AlbumCard : public QFrame {
+    Q_OBJECT
+public:
+    AlbumCard(Album *album, QWidget *parent = nullptr);
+signals:
+    void clicked(Album *album);
+protected:
+    void mousePressEvent(QMouseEvent *event) override;
+private:
+    Album *m_album;
+};
+
 class MainWindow : public QMainWindow {
     Q_OBJECT
 
@@ -90,6 +106,14 @@ private slots:
     // Async scan slots
     void onScanProgress(int scanned, int total);
     void onScanFinished(MusicLibrary *temp_lib);
+    
+    // Home/Search slots
+    void onSearchTextChanged(const QString &text);
+    void onSearchResultActivated(const QModelIndex &index);
+    void onRecentAlbumClicked(Album *album);
+
+protected:
+    void resizeEvent(QResizeEvent *event) override;
 
 private:
     void setupUI();
@@ -189,6 +213,17 @@ private:
     QLabel *m_statusLabel;
     QProgressBar *m_statusProgress;
     
+    // Home/Search helper methods
+    void setupHomeTab();
+    void refreshRecentAlbums();
+
+    // Home/Search widgets
+    QLineEdit *m_searchEdit;
+    QTreeView *m_searchResultsTreeView;
+    QStandardItemModel *m_searchModel;
+    QWidget *m_recentAlbumsWidget;
+    QGridLayout *m_recentAlbumsLayout;
+
     // Timers
     QTimer *m_positionTimer;
 };

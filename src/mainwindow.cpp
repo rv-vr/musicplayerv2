@@ -42,6 +42,64 @@ int count_audio_files(const QString &dir_path) {
     return count;
 }
 
+// AlbumCard Implementation
+AlbumCard::AlbumCard(Album *album, QWidget *parent)
+    : QFrame(parent), m_album(album)
+{
+    setFixedSize(140, 200);
+    setFrameShape(QFrame::StyledPanel);
+    setObjectName("albumCard");
+    
+    QVBoxLayout *layout = new QVBoxLayout(this);
+    layout->setContentsMargins(8, 8, 8, 8);
+    layout->setSpacing(6);
+    
+    QLabel *coverLbl = new QLabel(this);
+    coverLbl->setFixedSize(124, 124);
+    coverLbl->setAlignment(Qt::AlignCenter);
+    
+    if (album->songs && album->songs->data) {
+        Song *first = (Song *)album->songs->data;
+        char *cov_path = resolve_cover_art(first->filepath);
+        if (cov_path && g_file_test(cov_path, G_FILE_TEST_EXISTS)) {
+            QPixmap pm(QString::fromUtf8(cov_path));
+            coverLbl->setPixmap(pm.scaled(124, 124, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation));
+        } else {
+            QPixmap fallback(124, 124);
+            fallback.fill(QColor("#202024"));
+            coverLbl->setPixmap(fallback);
+        }
+        if (cov_path) g_free(cov_path);
+    } else {
+        QPixmap fallback(124, 124);
+        fallback.fill(QColor("#202024"));
+        coverLbl->setPixmap(fallback);
+    }
+    layout->addWidget(coverLbl);
+    
+    QLabel *titleLbl = new QLabel(QString::fromUtf8(album->name), this);
+    titleLbl->setStyleSheet("font-size: 12px; font-weight: 700; color: #ffffff;");
+    titleLbl->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+    QFontMetrics fm(titleLbl->font());
+    QString elidedTitle = fm.elidedText(titleLbl->text(), Qt::ElideRight, 120);
+    titleLbl->setText(elidedTitle);
+    layout->addWidget(titleLbl);
+    
+    QLabel *artistLbl = new QLabel(QString::fromUtf8(album->artist), this);
+    artistLbl->setStyleSheet("font-size: 11px; color: #a8a8b3;");
+    artistLbl->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+    QString elidedArtist = fm.elidedText(artistLbl->text(), Qt::ElideRight, 120);
+    artistLbl->setText(elidedArtist);
+    layout->addWidget(artistLbl);
+    
+    layout->addStretch();
+}
+
+void AlbumCard::mousePressEvent(QMouseEvent *event) {
+    emit clicked(m_album);
+    QFrame::mousePressEvent(event);
+}
+
 // Worker thread run implementation
 void ScanWorker::run() {
     *m_total_counter = count_audio_files(m_path);
@@ -64,7 +122,12 @@ MainWindow::MainWindow(QWidget *parent)
       m_scanScannedCount(0),
       m_scanTotalCount(0),
       m_scanIsRunning(false),
-      m_importProcess(nullptr)
+      m_importProcess(nullptr),
+      m_searchEdit(nullptr),
+      m_searchResultsTreeView(nullptr),
+      m_searchModel(nullptr),
+      m_recentAlbumsWidget(nullptr),
+      m_recentAlbumsLayout(nullptr)
 {
     // Initialize BASS
     if (!BASS_Init(-1, 44100, 0, NULL, NULL)) {
@@ -251,6 +314,7 @@ void MainWindow::setupUI() {
     mainCardLayout->setContentsMargins(16, 16, 16, 16);
     
     m_tabs = new QTabWidget(mainCard);
+    setupHomeTab();
     mainCardLayout->addWidget(m_tabs);
     mainLayout->addWidget(mainCard);
     
@@ -465,6 +529,17 @@ void MainWindow::applyStyle() {
         "    border-radius: 12px;\n"
         "    margin: 10px 10px 10px 5px;\n"
         "    padding: 16px;\n"
+        "}\n"
+        "\n"
+        "/* -- AlbumCard (Home Tab) -- */\n"
+        "#albumCard {\n"
+        "    background-color: rgba(255, 255, 255, 0.03);\n"
+        "    border: 1px solid #28282e;\n"
+        "    border-radius: 10px;\n"
+        "}\n"
+        "#albumCard:hover {\n"
+        "    background-color: rgba(255, 255, 255, 0.08);\n"
+        "    border: 1px solid #04d361;\n"
         "}\n"
         "\n"
         /* -- Scrollbar -- */
@@ -1126,6 +1201,7 @@ void MainWindow::onScanFinished(MusicLibrary *temp_lib) {
     m_library = temp_lib;
     
     refreshAlbumList();
+    refreshRecentAlbums();
     
     m_scanIsRunning = false;
     m_scanPendingPath = "";
@@ -1262,5 +1338,235 @@ void MainWindow::onImportReadyRead() {
         
         // Auto scroll to bottom
         m_importLogView->verticalScrollBar()->setValue(m_importLogView->verticalScrollBar()->maximum());
+    }
+}
+
+void MainWindow::setupHomeTab() {
+    QWidget *homeTab = new QWidget(m_tabs);
+    QVBoxLayout *homeLayout = new QVBoxLayout(homeTab);
+    homeLayout->setContentsMargins(16, 16, 16, 16);
+    homeLayout->setSpacing(12);
+    
+    // Search edit
+    m_searchEdit = new QLineEdit(homeTab);
+    m_searchEdit->setPlaceholderText("🔍 Search songs, artists, or albums...");
+    m_searchEdit->setStyleSheet(
+        "QLineEdit {"
+        "    background-color: #121214;"
+        "    border: 1px solid #28282e;"
+        "    border-radius: 8px;"
+        "    padding: 10px 14px;"
+        "    color: #ffffff;"
+        "    font-size: 14px;"
+        "}"
+        "QLineEdit:focus {"
+        "    border: 1px solid #04d361;"
+        "}"
+    );
+    homeLayout->addWidget(m_searchEdit);
+    
+    // Recently Added container
+    m_recentAlbumsWidget = new QWidget(homeTab);
+    QVBoxLayout *recentLayout = new QVBoxLayout(m_recentAlbumsWidget);
+    recentLayout->setContentsMargins(0, 0, 0, 0);
+    recentLayout->setSpacing(10);
+    
+    QLabel *recentHeader = new QLabel("Recently Added Albums", m_recentAlbumsWidget);
+    recentHeader->setStyleSheet("font-size: 16px; font-weight: 700; color: #04d361;");
+    recentLayout->addWidget(recentHeader);
+    
+    QScrollArea *scroll = new QScrollArea(m_recentAlbumsWidget);
+    scroll->setWidgetResizable(true);
+    scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    scroll->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    scroll->setFrameShape(QFrame::NoFrame);
+    scroll->setStyleSheet("background-color: transparent;");
+    
+    QWidget *scrollContainer = new QWidget(scroll);
+    scrollContainer->setStyleSheet("background-color: transparent;");
+    m_recentAlbumsLayout = new QGridLayout(scrollContainer);
+    m_recentAlbumsLayout->setContentsMargins(0, 0, 0, 0);
+    m_recentAlbumsLayout->setSpacing(12);
+    m_recentAlbumsLayout->setAlignment(Qt::AlignLeft | Qt::AlignTop);
+    
+    scrollContainer->setLayout(m_recentAlbumsLayout);
+    scroll->setWidget(scrollContainer);
+    recentLayout->addWidget(scroll);
+    
+    homeLayout->addWidget(m_recentAlbumsWidget);
+    
+    // Search Results tree view
+    m_searchResultsTreeView = new QTreeView(homeTab);
+    m_searchResultsTreeView->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    m_searchResultsTreeView->setSelectionBehavior(QAbstractItemView::SelectRows);
+    m_searchResultsTreeView->setAllColumnsShowFocus(true);
+    m_searchResultsTreeView->setHeaderHidden(false);
+    
+    m_searchModel = new QStandardItemModel(0, 6, m_searchResultsTreeView);
+    m_searchModel->setHeaderData(0, Qt::Horizontal, "#");
+    m_searchModel->setHeaderData(1, Qt::Horizontal, "Title");
+    m_searchModel->setHeaderData(2, Qt::Horizontal, "Artist");
+    m_searchModel->setHeaderData(3, Qt::Horizontal, "Album");
+    m_searchModel->setHeaderData(4, Qt::Horizontal, "Duration");
+    m_searchModel->setHeaderData(5, Qt::Horizontal, "SongPtr");
+    
+    m_searchResultsTreeView->setModel(m_searchModel);
+    m_searchResultsTreeView->setColumnHidden(5, true);
+    m_searchResultsTreeView->header()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
+    m_searchResultsTreeView->header()->setSectionResizeMode(1, QHeaderView::Stretch);
+    m_searchResultsTreeView->header()->setSectionResizeMode(2, QHeaderView::Stretch);
+    m_searchResultsTreeView->header()->setSectionResizeMode(3, QHeaderView::Stretch);
+    m_searchResultsTreeView->header()->setSectionResizeMode(4, QHeaderView::ResizeToContents);
+    
+    m_searchResultsTreeView->hide();
+    homeLayout->addWidget(m_searchResultsTreeView);
+    
+    m_tabs->addTab(homeTab, "Home");
+    
+    connect(m_searchEdit, &QLineEdit::textChanged, this, &MainWindow::onSearchTextChanged);
+    connect(m_searchResultsTreeView, &QTreeView::doubleClicked, this, &MainWindow::onSearchResultActivated);
+}
+
+void MainWindow::refreshRecentAlbums() {
+    // Clear old cards
+    QLayoutItem *child;
+    while ((child = m_recentAlbumsLayout->takeAt(0)) != nullptr) {
+        if (child->widget()) {
+            child->widget()->deleteLater();
+        }
+        delete child;
+    }
+    
+    if (!m_library) return;
+    
+    // Determine the number of rows based on window height (3 to 5 rows)
+    int h = this->height();
+    int num_rows = 3;
+    if (h >= 1000) {
+        num_rows = 5;
+    } else if (h >= 820) {
+        num_rows = 4;
+    } else {
+        num_rows = 3;
+    }
+    
+    // Fetch enough albums to populate the grid (limit = rows * 8 columns)
+    int limit = num_rows * 8;
+    GList *recent = library_get_recent_albums(m_library, limit);
+    int i = 0;
+    for (GList *l = recent; l != nullptr; l = l->next) {
+        Album *album = (Album *)l->data;
+        AlbumCard *card = new AlbumCard(album, m_recentAlbumsWidget);
+        connect(card, &AlbumCard::clicked, this, &MainWindow::onRecentAlbumClicked);
+        
+        int row = i % num_rows;
+        int col = i / num_rows;
+        m_recentAlbumsLayout->addWidget(card, row, col);
+        i++;
+    }
+    g_list_free(recent);
+}
+
+void MainWindow::resizeEvent(QResizeEvent *event) {
+    QMainWindow::resizeEvent(event);
+    if (m_library && m_recentAlbumsWidget && m_recentAlbumsWidget->isVisible()) {
+        static int last_num_rows = -1;
+        int h = this->height();
+        int num_rows = 3;
+        if (h >= 1000) {
+            num_rows = 5;
+        } else if (h >= 820) {
+            num_rows = 4;
+        } else {
+            num_rows = 3;
+        }
+        
+        if (num_rows != last_num_rows) {
+            last_num_rows = num_rows;
+            refreshRecentAlbums();
+        }
+    }
+}
+
+void MainWindow::onSearchTextChanged(const QString &text) {
+    if (text.trimmed().isEmpty()) {
+        m_searchResultsTreeView->hide();
+        m_recentAlbumsWidget->show();
+        m_searchModel->removeRows(0, m_searchModel->rowCount());
+        return;
+    }
+    
+    m_recentAlbumsWidget->hide();
+    m_searchResultsTreeView->show();
+    m_searchModel->removeRows(0, m_searchModel->rowCount());
+    
+    if (!m_library) return;
+    
+    int result_idx = 1;
+    for (GList *la = m_library->albums; la != nullptr; la = la->next) {
+        Album *album = (Album *)la->data;
+        for (GList *ls = album->songs; ls != nullptr; ls = ls->next) {
+            Song *song = (Song *)ls->data;
+            
+            QString title = QString::fromUtf8(song->title);
+            QString artist = QString::fromUtf8(song->artist);
+            QString albumName = QString::fromUtf8(song->album);
+            
+            if (title.contains(text, Qt::CaseInsensitive) ||
+                artist.contains(text, Qt::CaseInsensitive) ||
+                albumName.contains(text, Qt::CaseInsensitive)) {
+                
+                int min = (int)song->duration / 60;
+                int sec = (int)song->duration % 60;
+                QString durStr = QString("%1:%2").arg(min, 2, 10, QChar('0')).arg(sec, 2, 10, QChar('0'));
+                
+                QList<QStandardItem*> row;
+                row << new QStandardItem(QString::number(result_idx++))
+                    << new QStandardItem(title)
+                    << new QStandardItem(artist)
+                    << new QStandardItem(albumName)
+                    << new QStandardItem(durStr);
+                    
+                QStandardItem *ptrItem = new QStandardItem();
+                ptrItem->setData(QVariant::fromValue((void*)song));
+                row << ptrItem;
+                
+                m_searchModel->appendRow(row);
+            }
+        }
+    }
+}
+
+void MainWindow::onSearchResultActivated(const QModelIndex &index) {
+    int row = index.row();
+    QStandardItem *ptrItem = m_searchModel->item(row, 5);
+    if (!ptrItem) return;
+    
+    Song *song = (Song *)ptrItem->data().value<void*>();
+    if (!song) return;
+    
+    Album *album = library_find_album(m_library, song->artist, song->album);
+    if (album) {
+        setupQueueForAlbum(album, song);
+        playSong(song);
+    }
+}
+
+void MainWindow::onRecentAlbumClicked(Album *album) {
+    if (!album) return;
+    
+    // Find index of the album in the library tab's tree model
+    for (int i = 0; i < m_albumModel->rowCount(); ++i) {
+        QString name = m_albumModel->item(i, 0)->text();
+        QString artist = m_albumModel->item(i, 1)->text();
+        if (name == QString::fromUtf8(album->name) && artist == QString::fromUtf8(album->artist)) {
+            QModelIndex idx = m_albumModel->index(i, 0);
+            m_albumTreeView->selectionModel()->select(idx, QItemSelectionModel::ClearAndSelect | QItemSelectionModel::Rows);
+            m_albumTreeView->scrollTo(idx);
+            
+            // Switch to Library tab (index 1, since Home is index 0)
+            m_tabs->setCurrentIndex(1);
+            break;
+        }
     }
 }

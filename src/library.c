@@ -261,6 +261,45 @@ Album *library_find_album(MusicLibrary *lib, const char *artist, const char *alb
     return album;
 }
 
+GList *library_get_recent_albums(MusicLibrary *lib, int limit) {
+    GList *recent_list = NULL;
+    sqlite3 *db = db_init();
+    if (!db) return NULL;
+    
+    sqlite3_stmt *stmt;
+    // Group by album name and canonical album artist/artist, and order by the newest file mtime
+    const char *query = "SELECT album, album_artist, artist, MAX(mtime) as max_mtime "
+                        "FROM songs "
+                        "GROUP BY album, COALESCE(NULLIF(album_artist, ''), artist) "
+                        "ORDER BY max_mtime DESC LIMIT ?;";
+                        
+    if (sqlite3_prepare_v2(db, query, -1, &stmt, NULL) == SQLITE_OK) {
+        // Query double the limit to buffer against missing/unloaded albums in memory
+        sqlite3_bind_int(stmt, 1, limit * 2);
+        int count = 0;
+        while (sqlite3_step(stmt) == SQLITE_ROW && count < limit) {
+            const char *album_name = (const char *)sqlite3_column_text(stmt, 0);
+            const char *album_artist = (const char *)sqlite3_column_text(stmt, 1);
+            const char *artist = (const char *)sqlite3_column_text(stmt, 2);
+            
+            const char *lookup_artist = (album_artist && strlen(album_artist) > 0) ? album_artist : artist;
+            if (album_name) {
+                Album *album = library_find_album(lib, lookup_artist ? lookup_artist : "", album_name);
+                if (album) {
+                    // Prevent memory-level duplicate Album* structures
+                    if (!g_list_find(recent_list, album)) {
+                        recent_list = g_list_append(recent_list, album);
+                        count++;
+                    }
+                }
+            }
+        }
+        sqlite3_finalize(stmt);
+    }
+    sqlite3_close(db);
+    return recent_list;
+}
+
 static double query_duration(const char *filepath) {
     HSTREAM stream = BASS_StreamCreateFile(FALSE, filepath, 0, 0, BASS_STREAM_DECODE);
     double duration = 0.0;
