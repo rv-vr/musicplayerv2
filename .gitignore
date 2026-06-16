@@ -1,0 +1,19 @@
+# Build directories
+build/
+dist/
+
+# Executables
+/musicplayer
+build/musicplayer
+dist/musicplayer
+
+# SQLite database cache
+*.db
+~/.config/musicplayerv2/library.db
+
+# Object files and temporary build assets
+*.o
+*.failed
+*.log
+/tmp/musicplayerv2_cover.png
+/tmp/musicplayerv2_lyrics.lrc
