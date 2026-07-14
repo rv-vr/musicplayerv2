@@ -124,18 +124,21 @@ MainWindow::MainWindow(QWidget *parent)
       m_recentAlbumsLayout(nullptr)
 {
     // Initialize BASS
-    if (!BASS_Init(-1, 44100, 0, NULL, NULL)) {
+    bool bassOk = BASS_Init(-1, 44100, 0, NULL, NULL);
+    if (!bassOk) {
         qWarning() << "BASS_Init error:" << BASS_ErrorGetCode();
     }
     
     // Load AAC Plugin
-    QString appDir = QCoreApplication::applicationDirPath();
-    QString pluginPath = appDir + "/lib/libbass_aac.so";
-    if (!QFile::exists(pluginPath)) {
-        pluginPath = appDir + "/../lib/libbass_aac.so";
-    }
-    if (BASS_PluginLoad(pluginPath.toUtf8().constData(), 0) == 0) {
-        qWarning() << "Warning: BASS plugin not loaded at" << pluginPath;
+    if (bassOk) {
+        QString appDir = QCoreApplication::applicationDirPath();
+        QString pluginPath = appDir + "/lib/libbass_aac.so";
+        if (!QFile::exists(pluginPath)) {
+            pluginPath = appDir + "/../lib/libbass_aac.so";
+        }
+        if (BASS_PluginLoad(pluginPath.toUtf8().constData(), 0) == 0) {
+            qWarning() << "Warning: BASS plugin not loaded at" << pluginPath;
+        }
     }
     
     // Initialize Backend State
@@ -737,13 +740,17 @@ void MainWindow::applyStyle() {
 
 void MainWindow::playSong(Song *song) {
     if (!song) return;
-    
+
     if (m_playStream) {
         BASS_StreamFree(m_playStream);
         m_playStream = 0;
     }
-    
+
     m_playStream = BASS_StreamCreateFile(FALSE, song->filepath, 0, 0, 0);
+    if (!m_playStream && BASS_ErrorGetCode() == BASS_ERROR_INIT) {
+        QMessageBox::critical(this, "Playback Error", "BASS not initialized. Check audio device.");
+        return;
+    }
     if (m_playStream) {
         BASS_ChannelSetAttribute(m_playStream, BASS_ATTRIB_VOL, m_isMuted ? 0.0 : m_config->volume);
         if (BASS_ChannelPlay(m_playStream, FALSE)) {
