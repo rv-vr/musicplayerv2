@@ -14,10 +14,6 @@
 #include <QFileInfo>
 #include <QDebug>
 
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <unistd.h>
-
 // Helper recursive file counter
 static void count_recursive_qt(const QString &dir_path, int *count) {
     QDir dir(dir_path);
@@ -58,10 +54,10 @@ AlbumCard::AlbumCard(Album *album, QWidget *parent)
     coverLbl->setFixedSize(124, 124);
     coverLbl->setAlignment(Qt::AlignCenter);
     
-    if (album->songs && album->songs->data) {
-        Song *first = (Song *)album->songs->data;
+    if (!album->songs.isEmpty()) {
+        Song *first = album->songs.first();
         char *cov_path = resolve_cover_art(first->filepath);
-        if (cov_path && g_file_test(cov_path, G_FILE_TEST_EXISTS)) {
+        if (cov_path && QFile::exists(cov_path)) {
             QPixmap pm(QString::fromUtf8(cov_path));
             coverLbl->setPixmap(pm.scaled(124, 124, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation));
         } else {
@@ -69,7 +65,7 @@ AlbumCard::AlbumCard(Album *album, QWidget *parent)
             fallback.fill(QColor("#202024"));
             coverLbl->setPixmap(fallback);
         }
-        if (cov_path) g_free(cov_path);
+        free(cov_path);
     } else {
         QPixmap fallback(124, 124);
         fallback.fill(QColor("#202024"));
@@ -102,8 +98,8 @@ void AlbumCard::mousePressEvent(QMouseEvent *event) {
 
 // Worker thread run implementation
 void ScanWorker::run() {
-    *m_total_counter = count_audio_files(m_path);
-    library_scan(m_lib, m_path.toUtf8().constData(), m_counter);
+    m_totalCounter->storeRelaxed(count_audio_files(m_path));
+    library_scan(m_lib, m_path, m_counter);
     emit finished(m_lib);
 }
 
@@ -119,8 +115,6 @@ MainWindow::MainWindow(QWidget *parent)
       m_currentLyrics(nullptr),
       m_activeLyricIndex(-1),
       m_scanThread(nullptr),
-      m_scanScannedCount(0),
-      m_scanTotalCount(0),
       m_scanIsRunning(false),
       m_importProcess(nullptr),
       m_searchEdit(nullptr),
@@ -855,8 +849,8 @@ void MainWindow::onSeekChanged(int value) {
 
 void MainWindow::onPositionTimer() {
     if (m_scanIsRunning) {
-        int total = m_scanTotalCount;
-        int scanned = m_scanScannedCount;
+        int total = m_scanTotalCount.loadRelaxed();
+        int scanned = m_scanScannedCount.loadRelaxed();
         if (total == 0) {
             m_statusLabel->setText("Calculating library files...");
             m_statusProgress->setRange(0, 0);
@@ -909,9 +903,8 @@ void MainWindow::onPositionTimer() {
 
 void MainWindow::refreshAlbumList() {
     m_albumModel->removeRows(0, m_albumModel->rowCount());
-    
-    for (GList *l = m_library->albums; l != nullptr; l = l->next) {
-        Album *album = (Album *)l->data;
+
+    for (Album *album : m_library->albums) {
         QList<QStandardItem*> row;
         row << new QStandardItem(QString::fromUtf8(album->name))
             << new QStandardItem(QString::fromUtf8(album->artist));
@@ -922,22 +915,20 @@ void MainWindow::refreshAlbumList() {
 void MainWindow::onAlbumSelected() {
     QModelIndexList selected = m_albumTreeView->selectionModel()->selectedRows();
     if (selected.isEmpty()) return;
-    
+
     QString album_name = m_albumModel->item(selected.first().row(), 0)->text();
     QString artist_name = m_albumModel->item(selected.first().row(), 1)->text();
-    
+
     Album *album = library_find_album(m_library, artist_name.toUtf8().constData(), album_name.toUtf8().constData());
     m_trackModel->removeRows(0, m_trackModel->rowCount());
-    
+
     if (album) {
         int track_idx = 1;
-        for (GList *l = album->songs; l != nullptr; l = l->next) {
-            Song *song = (Song *)l->data;
-            
+        for (Song *song : album->songs) {
             int min = (int)song->duration / 60;
             int sec = (int)song->duration % 60;
             QString durStr = QString("%1:%2").arg(min, 2, 10, QChar('0')).arg(sec, 2, 10, QChar('0'));
-            
+
             QString trackNoStr;
             if (song->disc_no > 1) {
                 trackNoStr = QString("%1-%2").arg(song->disc_no).arg(song->track_no, 2, 10, QChar('0'));
@@ -946,16 +937,16 @@ void MainWindow::onAlbumSelected() {
             } else {
                 trackNoStr = QString("%1").arg(track_idx++, 2, 10, QChar('0'));
             }
-            
+
             QList<QStandardItem*> row;
             row << new QStandardItem(trackNoStr)
                 << new QStandardItem(QString::fromUtf8(song->title))
                 << new QStandardItem(durStr);
-                
+
             QStandardItem *ptrItem = new QStandardItem();
             ptrItem->setData(QVariant::fromValue((void*)song));
             row << ptrItem;
-            
+
             m_trackModel->appendRow(row);
         }
     }
@@ -964,10 +955,9 @@ void MainWindow::onAlbumSelected() {
 void MainWindow::setupQueueForAlbum(Album *album, Song *start_song) {
     m_queue.clear();
     m_currentQueueIndex = -1;
-    
+
     int idx = 0;
-    for (GList *l = album->songs; l != nullptr; l = l->next) {
-        Song *song = (Song *)l->data;
+    for (Song *song : album->songs) {
         m_queue.append(song);
         if (song == start_song) {
             m_currentQueueIndex = idx;
@@ -1064,9 +1054,9 @@ void MainWindow::updateAlbumCover(const QString &song_path) {
         m_albumCoverImg->setPixmap(fallback);
         return;
     }
-    
+
     char *cover_path = resolve_cover_art(song_path.toUtf8().constData());
-    if (cover_path && g_file_test(cover_path, G_FILE_TEST_EXISTS)) {
+    if (cover_path && QFile::exists(cover_path)) {
         QPixmap pm(QString::fromUtf8(cover_path));
         m_albumCoverImg->setPixmap(pm.scaled(220, 220, Qt::KeepAspectRatio, Qt::SmoothTransformation));
     } else {
@@ -1074,8 +1064,8 @@ void MainWindow::updateAlbumCover(const QString &song_path) {
         fallback.fill(QColor("#202024"));
         m_albumCoverImg->setPixmap(fallback);
     }
-    
-    if (cover_path) g_free(cover_path);
+
+    free(cover_path);
 }
 
 void MainWindow::loadSongLyrics(const QString &song_path) {
@@ -1099,15 +1089,14 @@ void MainWindow::loadSongLyrics(const QString &song_path) {
     }
     
     char *lrc_path = resolve_lyrics(song_path.toUtf8().constData());
-    if (lrc_path && g_file_test(lrc_path, G_FILE_TEST_EXISTS)) {
+    if (lrc_path && QFile::exists(lrc_path)) {
         m_currentLyrics = lyrics_load(lrc_path);
     }
-    if (lrc_path) g_free(lrc_path);
+    free(lrc_path);
     
-    if (m_currentLyrics && m_currentLyrics->lines && m_currentLyrics->lines->len > 0) {
-        for (guint i = 0; i < m_currentLyrics->lines->len; i++) {
-            LyricLine *line = &g_array_index(m_currentLyrics->lines, LyricLine, i);
-            QLabel *lbl = new QLabel(QString::fromUtf8(line->text), m_lyricsContainer);
+    if (m_currentLyrics && !m_currentLyrics->lines.isEmpty()) {
+        for (const LyricLine &line : m_currentLyrics->lines) {
+            QLabel *lbl = new QLabel(QString::fromUtf8(line.text), m_lyricsContainer);
             lbl->setAlignment(Qt::AlignCenter);
             lbl->setProperty("class", "lyric-line");
             lbl->setStyleSheet("font-size: 16px; color: #7c7c8a; padding: 10px 0; font-weight: 500;");
@@ -1124,7 +1113,7 @@ void MainWindow::loadSongLyrics(const QString &song_path) {
 }
 
 void MainWindow::updateLyricsDisplay(double position) {
-    if (!m_currentLyrics || !m_currentLyrics->lines || m_currentLyrics->lines->len == 0 || m_lyricLabels.isEmpty()) return;
+    if (!m_currentLyrics || m_currentLyrics->lines.isEmpty() || m_lyricLabels.isEmpty()) return;
     
     int index = lyrics_find_index(m_currentLyrics, position);
     if (index == m_activeLyricIndex) return;
@@ -1241,11 +1230,11 @@ void MainWindow::onSettingsSave() {
         return;
     }
     
-    g_free(m_config->library_path);
-    m_config->library_path = g_strdup(lib.toUtf8().constData());
-    
-    g_free(m_config->import_dest_path);
-    m_config->import_dest_path = g_strdup(dest.toUtf8().constData());
+    free(m_config->library_path);
+    m_config->library_path = strdup(lib.toUtf8().constData());
+
+    free(m_config->import_dest_path);
+    m_config->import_dest_path = strdup(dest.toUtf8().constData());
     
     config_save(m_config);
     
@@ -1452,19 +1441,17 @@ void MainWindow::refreshRecentAlbums() {
     
     // Fetch enough albums to populate the grid (limit = rows * 8 columns)
     int limit = num_rows * 8;
-    GList *recent = library_get_recent_albums(m_library, limit);
+    QList<Album*> recent = library_get_recent_albums(m_library, limit);
     int i = 0;
-    for (GList *l = recent; l != nullptr; l = l->next) {
-        Album *album = (Album *)l->data;
+    for (Album *album : recent) {
         AlbumCard *card = new AlbumCard(album, m_recentAlbumsWidget);
         connect(card, &AlbumCard::clicked, this, &MainWindow::onRecentAlbumClicked);
-        
+
         int row = i % num_rows;
         int col = i / num_rows;
         m_recentAlbumsLayout->addWidget(card, row, col);
         i++;
     }
-    g_list_free(recent);
 }
 
 void MainWindow::resizeEvent(QResizeEvent *event) {
@@ -1503,10 +1490,8 @@ void MainWindow::onSearchTextChanged(const QString &text) {
     if (!m_library) return;
     
     int result_idx = 1;
-    for (GList *la = m_library->albums; la != nullptr; la = la->next) {
-        Album *album = (Album *)la->data;
-        for (GList *ls = album->songs; ls != nullptr; ls = ls->next) {
-            Song *song = (Song *)ls->data;
+    for (Album *album : m_library->albums) {
+        for (Song *song : album->songs) {
             
             QString title = QString::fromUtf8(song->title);
             QString artist = QString::fromUtf8(song->artist);

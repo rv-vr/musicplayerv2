@@ -23,26 +23,23 @@
 #include <QCheckBox>
 #include <QProgressBar>
 #include <QPlainTextEdit>
+#include <QAtomicInt>
 
-extern "C" {
 #include "library.h"
 #include "lyrics.h"
 #include "bass.h"
-}
 
-// Helper struct for audio files counting
 int count_audio_files(const QString &dir_path);
 
-// Worker class for async library scanning
 class ScanWorker : public QObject {
     Q_OBJECT
 public:
-    ScanWorker(const QString &path, MusicLibrary *lib, volatile int *counter, volatile int *total_counter) 
-        : m_path(path), m_lib(lib), m_counter(counter), m_total_counter(total_counter) {}
+    ScanWorker(const QString &path, MusicLibrary *lib, QAtomicInt *counter, QAtomicInt *totalCounter)
+        : m_path(path), m_lib(lib), m_counter(counter), m_totalCounter(totalCounter) {}
 
 signals:
     void progressUpdated(int scanned, int total);
-    void finished(MusicLibrary *temp_lib);
+    void finished(MusicLibrary *tempLib);
 
 public slots:
     void run();
@@ -50,8 +47,8 @@ public slots:
 private:
     QString m_path;
     MusicLibrary *m_lib;
-    volatile int *m_counter;
-    volatile int *m_total_counter;
+    QAtomicInt *m_counter;
+    QAtomicInt *m_totalCounter;
 };
 
 class AlbumCard : public QFrame {
@@ -74,7 +71,6 @@ public:
     ~MainWindow();
 
 private slots:
-    // Playback slots
     void onPlayPauseClicked();
     void onPrevClicked();
     void onNextClicked();
@@ -84,30 +80,25 @@ private slots:
     void onVolumeChanged(int value);
     void onSeekChanged(int value);
     void onPositionTimer();
-    
-    // UI selection slots
+
     void onAlbumSelected();
     void onTrackActivated(const QModelIndex &index);
     void onQueueActivated(const QModelIndex &index);
     void onClearQueueClicked();
-    
-    // Import slots
+
     void onImportSrcBrowse();
     void onImportStart();
     void onImportStop();
     void onImportFinished(int exitCode, QProcess::ExitStatus exitStatus);
     void onImportReadyRead();
-    
-    // Settings slots
+
     void onSettingsLibBrowse();
     void onSettingsDestBrowse();
     void onSettingsSave();
-    
-    // Async scan slots
+
     void onScanProgress(int scanned, int total);
-    void onScanFinished(MusicLibrary *temp_lib);
-    
-    // Home/Search slots
+    void onScanFinished(MusicLibrary *tempLib);
+
     void onSearchTextChanged(const QString &text);
     void onSearchResultActivated(const QModelIndex &index);
     void onRecentAlbumClicked(Album *album);
@@ -127,37 +118,30 @@ private:
     void refreshQueueList();
     void setupQueueForAlbum(Album *album, Song *start_song);
 
-    // Audio State
     HSTREAM m_playStream;
     bool m_isPlaying;
     bool m_isMuted;
     double m_savedVolume;
-    
-    // Library & Config State
+
     MusicLibrary *m_library;
     PlayerConfig *m_config;
     QList<Song*> m_queue;
     int m_currentQueueIndex;
-    
-    // Lyrics State
+
     Lyrics *m_currentLyrics;
     int m_activeLyricIndex;
     QList<QLabel*> m_lyricLabels;
-    
-    // Async Scan State
+
     QThread *m_scanThread;
-    volatile int m_scanScannedCount;
-    volatile int m_scanTotalCount;
+    QAtomicInt m_scanScannedCount;
+    QAtomicInt m_scanTotalCount;
     bool m_scanIsRunning;
     QString m_scanPendingPath;
-    
-    // Import process
+
     QProcess *m_importProcess;
 
-    // UI Widgets
     QWidget *m_centralWidget;
-    
-    // Sidebar
+
     QLabel *m_albumCoverImg;
     QLabel *m_trackTitleLbl;
     QLabel *m_trackArtistLbl;
@@ -170,26 +154,21 @@ private:
     QPushButton *m_repeatBtn;
     QPushButton *m_muteBtn;
     QSlider *m_volumeScale;
-    
-    // Right tab area
+
     QTabWidget *m_tabs;
-    
-    // Library tab
+
     QTreeView *m_albumTreeView;
     QTreeView *m_trackTreeView;
     QStandardItemModel *m_albumModel;
     QStandardItemModel *m_trackModel;
-    
-    // Queue tab
+
     QTreeView *m_queueTreeView;
     QStandardItemModel *m_queueModel;
     QPushButton *m_clearQueueBtn;
-    
-    // Lyrics tab
+
     QScrollArea *m_lyricsScroll;
     QWidget *m_lyricsContainer;
-    
-    // Import tab
+
     QLineEdit *m_importSrcEdit;
     QPushButton *m_importSrcBtn;
     QLabel *m_importDestLbl;
@@ -201,31 +180,26 @@ private:
     QPushButton *m_importStopBtn;
     QProgressBar *m_importProgress;
     QPlainTextEdit *m_importLogView;
-    
-    // Settings tab
+
     QLineEdit *m_settingsLibEdit;
     QPushButton *m_settingsLibBtn;
     QLineEdit *m_settingsDestEdit;
     QPushButton *m_settingsDestBtn;
     QPushButton *m_settingsSaveBtn;
-    
-    // Status Bar
+
     QLabel *m_statusLabel;
     QProgressBar *m_statusProgress;
-    
-    // Home/Search helper methods
+
     void setupHomeTab();
     void refreshRecentAlbums();
 
-    // Home/Search widgets
     QLineEdit *m_searchEdit;
     QTreeView *m_searchResultsTreeView;
     QStandardItemModel *m_searchModel;
     QWidget *m_recentAlbumsWidget;
     QGridLayout *m_recentAlbumsLayout;
 
-    // Timers
     QTimer *m_positionTimer;
 };
 
-#endif // MAINWINDOW_H
+#endif

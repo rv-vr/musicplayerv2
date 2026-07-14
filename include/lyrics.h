@@ -1,19 +1,19 @@
 #ifndef LYRICS_H
 #define LYRICS_H
 
-#include <glib.h>
+#include <QVector>
 
 typedef struct {
-    double timestamp; // in seconds
+    double timestamp;
     char *text;
 } LyricLine;
 
 typedef struct {
-    GArray *lines; // Array of LyricLine structs
+    QVector<LyricLine> lines;
 } Lyrics;
 
 Lyrics *lyrics_load(const char *filepath);
 void lyrics_free(Lyrics *lyrics);
 int lyrics_find_index(Lyrics *lyrics, double seconds);
 
-#endif // LYRICS_H
+#endif

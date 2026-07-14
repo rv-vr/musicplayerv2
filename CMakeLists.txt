@@ -8,34 +8,39 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTORCC ON)
 
+# Toggle for static Qt6 build: cmake -DSTATIC_QT=ON ..
+option(STATIC_QT "Use statically linked Qt6" OFF)
+
+if(STATIC_QT)
+    set(CMAKE_PREFIX_PATH "/opt/qt6-static")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++")
+    set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+endif()
+
 find_package(Qt6 REQUIRED COMPONENTS Widgets)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(SQLITE3 REQUIRED sqlite3)
-pkg_check_modules(GLIB2 REQUIRED glib-2.0)
 
-# Locate BASS libraries
 find_library(BASS_LIB NAMES bass PATHS ${CMAKE_CURRENT_SOURCE_DIR}/lib NO_DEFAULT_PATH)
 find_library(BASS_AAC_LIB NAMES bass_aac PATHS ${CMAKE_CURRENT_SOURCE_DIR}/lib NO_DEFAULT_PATH)
 
-include_directories(include ${SQLITE3_INCLUDE_DIRS} ${GLIB2_INCLUDE_DIRS})
+include_directories(include ${SQLITE3_INCLUDE_DIRS})
 
 add_executable(musicplayer
     src/main.cpp
     src/mainwindow.cpp
-    src/library.c
-    src/lyrics.c
+    src/library.cpp
+    src/lyrics.cpp
 )
 
 target_link_libraries(musicplayer PRIVATE
     Qt6::Widgets
     ${SQLITE3_LIBRARIES}
-    ${GLIB2_LIBRARIES}
     ${BASS_LIB}
     ${BASS_AAC_LIB}
     m
 )
 
-# Set rpath to look in lib folder
 set_target_properties(musicplayer PROPERTIES
     BUILD_WITH_INSTALL_RPATH TRUE
     INSTALL_RPATH "$ORIGIN/lib:$ORIGIN/../lib"
