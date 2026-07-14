@@ -1295,7 +1295,11 @@ void MainWindow::onImportStart() {
     args << (m_importSkipChk->isChecked() ? "true" : "false");
     args << (m_importReduceChk->isChecked() ? "true" : "false");
     
-    m_importProcess->start("./run_import.sh", args);
+    QString script = QCoreApplication::applicationDirPath() + "/run_import.sh";
+    if (!QFile::exists(script)) {
+        script = QCoreApplication::applicationDirPath() + "/../run_import.sh";
+    }
+    m_importProcess->start(script, args);
 }
 
 void MainWindow::onImportStop() {
