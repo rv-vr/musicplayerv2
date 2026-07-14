@@ -317,42 +317,6 @@ void MainWindow::setupUI() {
     // TAB 1: Home
     setupHomeTab();
     
-    // TAB 2: Library
-    QSplitter *libSplitter = new QSplitter(Qt::Horizontal, m_tabs);
-    m_albumTreeView = new QTreeView(libSplitter);
-    m_albumTreeView->setHeaderHidden(false);
-    m_albumTreeView->setEditTriggers(QAbstractItemView::NoEditTriggers);
-    m_albumTreeView->setSelectionBehavior(QAbstractItemView::SelectRows);
-    m_albumTreeView->setAllColumnsShowFocus(true);
-    m_albumModel = new QStandardItemModel(0, 2, m_albumTreeView);
-    m_albumModel->setHeaderData(0, Qt::Horizontal, "Album");
-    m_albumModel->setHeaderData(1, Qt::Horizontal, "Artist");
-    m_albumTreeView->setModel(m_albumModel);
-    m_albumTreeView->header()->setSectionResizeMode(QHeaderView::Stretch);
-    connect(m_albumTreeView->selectionModel(), &QItemSelectionModel::selectionChanged, this, &MainWindow::onAlbumSelected);
-    
-    m_trackTreeView = new QTreeView(libSplitter);
-    m_trackTreeView->setHeaderHidden(false);
-    m_trackTreeView->setEditTriggers(QAbstractItemView::NoEditTriggers);
-    m_trackTreeView->setSelectionBehavior(QAbstractItemView::SelectRows);
-    m_trackTreeView->setAllColumnsShowFocus(true);
-    m_trackModel = new QStandardItemModel(0, 4, m_trackTreeView);
-    m_trackModel->setHeaderData(0, Qt::Horizontal, "#");
-    m_trackModel->setHeaderData(1, Qt::Horizontal, "Title");
-    m_trackModel->setHeaderData(2, Qt::Horizontal, "Duration");
-    m_trackModel->setHeaderData(3, Qt::Horizontal, "SongPtr"); // Hidden column
-    m_trackTreeView->setModel(m_trackModel);
-    m_trackTreeView->setColumnHidden(3, true);
-    m_trackTreeView->header()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
-    m_trackTreeView->header()->setSectionResizeMode(1, QHeaderView::Stretch);
-    m_trackTreeView->header()->setSectionResizeMode(2, QHeaderView::ResizeToContents);
-    connect(m_trackTreeView, &QTreeView::doubleClicked, this, &MainWindow::onTrackActivated);
-    
-    libSplitter->addWidget(m_albumTreeView);
-    libSplitter->addWidget(m_trackTreeView);
-    libSplitter->setSizes(QList<int>() << 300 << 500);
-    m_tabs->addTab(libSplitter, "Library");
-    
     // TAB 2: QUEUE
     QWidget *queueTab = new QWidget(m_tabs);
     QVBoxLayout *queueLayout = new QVBoxLayout(queueTab);
@@ -873,58 +837,6 @@ void MainWindow::onPositionTimer() {
 // UI List Updates & Actions
 // -------------------------------------------------------------
 
-void MainWindow::refreshAlbumList() {
-    m_albumModel->removeRows(0, m_albumModel->rowCount());
-
-    for (Album *album : m_library->albums) {
-        QList<QStandardItem*> row;
-        row << new QStandardItem(QString::fromUtf8(album->name))
-            << new QStandardItem(QString::fromUtf8(album->artist));
-        m_albumModel->appendRow(row);
-    }
-}
-
-void MainWindow::onAlbumSelected() {
-    QModelIndexList selected = m_albumTreeView->selectionModel()->selectedRows();
-    if (selected.isEmpty()) return;
-
-    QString album_name = m_albumModel->item(selected.first().row(), 0)->text();
-    QString artist_name = m_albumModel->item(selected.first().row(), 1)->text();
-
-    Album *album = library_find_album(m_library, artist_name.toUtf8().constData(), album_name.toUtf8().constData());
-    m_trackModel->removeRows(0, m_trackModel->rowCount());
-
-    if (album) {
-        int track_idx = 0;
-        for (Song *song : album->songs) {
-            int min = (int)song->duration / 60;
-            int sec = (int)song->duration % 60;
-            QString durStr = QString("%1:%2").arg(min, 2, 10, QChar('0')).arg(sec, 2, 10, QChar('0'));
-
-            track_idx++;
-            QString trackNoStr;
-            if (song->disc_no > 1) {
-                trackNoStr = QString("%1-%2").arg(song->disc_no).arg(song->track_no, 2, 10, QChar('0'));
-            } else if (song->track_no > 0) {
-                trackNoStr = QString("%1").arg(song->track_no, 2, 10, QChar('0'));
-            } else {
-                trackNoStr = QString("%1").arg(track_idx, 2, 10, QChar('0'));
-            }
-
-            QList<QStandardItem*> row;
-            row << new QStandardItem(trackNoStr)
-                << new QStandardItem(QString::fromUtf8(song->title))
-                << new QStandardItem(durStr);
-
-            QStandardItem *ptrItem = new QStandardItem();
-            ptrItem->setData(QVariant::fromValue((void*)song));
-            row << ptrItem;
-
-            m_trackModel->appendRow(row);
-        }
-    }
-}
-
 void MainWindow::setupQueueForAlbum(Album *album, Song *start_song) {
     m_queue.clear();
     m_currentQueueIndex = -1;
@@ -983,21 +895,6 @@ void MainWindow::refreshQueueList() {
                 m_queueModel->item(i, col)->setForeground(QBrush(QColor("#ffffff")));
             }
         }
-    }
-}
-
-void MainWindow::onTrackActivated(const QModelIndex &index) {
-    int row = index.row();
-    QStandardItem *ptrItem = m_trackModel->item(row, 3);
-    if (!ptrItem) return;
-    
-    Song *song = (Song *)ptrItem->data().value<void*>();
-    if (!song) return;
-    
-    Album *album = library_find_album(m_library, song->artist, song->album);
-    if (album) {
-        setupQueueForAlbum(album, song);
-        playSong(song);
     }
 }
 
@@ -1161,7 +1058,6 @@ void MainWindow::onScanFinished(MusicLibrary *temp_lib) {
     }
     m_library = temp_lib;
     
-    refreshAlbumList();
     refreshRecentAlbums();
     populateArtistList();
     
@@ -1516,18 +1412,19 @@ void MainWindow::onSearchResultActivated(const QModelIndex &index) {
 void MainWindow::onRecentAlbumClicked(Album *album) {
     if (!album) return;
     
-    // Find index of the album in the library tab's tree model
-    for (int i = 0; i < m_albumModel->rowCount(); ++i) {
-        QString name = m_albumModel->item(i, 0)->text();
-        QString artist = m_albumModel->item(i, 1)->text();
-        if (name == QString::fromUtf8(album->name) && artist == QString::fromUtf8(album->artist)) {
-            QModelIndex idx = m_albumModel->index(i, 0);
-            m_albumTreeView->selectionModel()->select(idx, QItemSelectionModel::ClearAndSelect | QItemSelectionModel::Rows);
-            m_albumTreeView->scrollTo(idx);
-            
-            // Switch to Library tab (index 2, since Artists=0, Home=1)
-            m_tabs->setCurrentIndex(2);
-            break;
-        }
+    m_tabs->setCurrentIndex(0);
+    
+    QString artistName = QString::fromUtf8(album->artist);
+    m_artistList->blockSignals(true);
+    QList<QListWidgetItem*> items = m_artistList->findItems(artistName, Qt::MatchExactly);
+    if (!items.isEmpty()) {
+        m_artistList->setCurrentItem(items.first());
+    } else {
+        m_artistList->clearSelection();
     }
+    m_artistList->blockSignals(false);
+    
+    m_selectedArtist = artistName;
+    m_selectedAlbum = album;
+    populateArtistTrackList(album);
 }

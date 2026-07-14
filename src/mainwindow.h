@@ -82,8 +82,7 @@ private slots:
     void onSeekChanged(int value);
     void onPositionTimer();
 
-    void onAlbumSelected();
-    void onTrackActivated(const QModelIndex &index);
+
     void onQueueActivated(const QModelIndex &index);
     void onClearQueueClicked();
 
@@ -115,7 +114,6 @@ private:
     void loadSongLyrics(const QString &song_path);
     void updateLyricsDisplay(double position);
     void playSong(Song *song);
-    void refreshAlbumList();
     void refreshQueueList();
     void setupQueueForAlbum(Album *album, Song *start_song);
 
@@ -157,11 +155,6 @@ private:
     QSlider *m_volumeScale;
 
     QTabWidget *m_tabs;
-
-    QTreeView *m_albumTreeView;
-    QTreeView *m_trackTreeView;
-    QStandardItemModel *m_albumModel;
-    QStandardItemModel *m_trackModel;
 
     QTreeView *m_queueTreeView;
     QStandardItemModel *m_queueModel;
