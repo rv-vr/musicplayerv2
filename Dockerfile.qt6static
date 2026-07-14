@@ -1,0 +1,30 @@
+FROM fedora:44 AS qt6-build
+
+RUN dnf install -y gcc-c++ make cmake perl python3 wget tar xz && \
+    dnf install -y \
+        libX11-devel libxcb-devel \
+        xcb-util-devel xcb-util-image-devel \
+        xcb-util-keysyms-devel xcb-util-renderutil-devel xcb-util-wm-devel \
+        libxkbcommon-devel libxkbcommon-x11-devel \
+        fontconfig-devel freetype-devel harfbuzz-devel \
+        libpng-devel zlib-ng-compat-devel \
+        double-conversion-devel md4c-devel \
+        libglvnd-devel mesa-libGLES-devel \
+        && dnf clean all
+
+WORKDIR /opt
+RUN wget -q https://download.qt.io/official_releases/qt/6.8/6.8.3/submodules/qtbase-everywhere-src-6.8.3.tar.xz && \
+    tar xf qtbase-everywhere-src-6.8.3.tar.xz && \
+    cd qtbase-everywhere-src-6.8.3 && \
+    ./configure -static -static-runtime -ltcg -optimize-size \
+        -qt-freetype -qt-harfbuzz -qt-libpng -qt-pcre -qt-zlib \
+        -no-pch -no-framework -no-dbus -no-opengl -no-vulkan \
+        -no-openssl \
+        -prefix /opt/qt6-static \
+        -nomake examples -nomake tests && \
+    cmake --build . --parallel $(nproc) && \
+    cmake --install . && \
+    rm -rf /opt/qtbase-everywhere-src-6.8.3*
+
+FROM scratch
+COPY --from=qt6-build /opt/qt6-static /

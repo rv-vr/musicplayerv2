@@ -1,35 +1,38 @@
 #!/bin/bash
 set -e
 
-echo "=== Starting Music Player Build ==="
+MODE="${1:-dynamic}"
 
-# 1. Clean and prepare build directory
+echo "=== Music Player Build ==="
+echo "Mode: $MODE"
+
 mkdir -p build
 cd build
 
-echo ">>> Running CMake..."
-cmake ..
+CMAKE_ARGS=""
+if [ "$MODE" = "static" ]; then
+    CMAKE_ARGS="-DSTATIC_QT=ON"
+fi
 
-echo ">>> Compiling..."
+cmake .. $CMAKE_ARGS
 make -j$(nproc)
-
 cd ..
 
-# 2. Prepare dist directory
-echo ">>> Creating distribution directory (dist/)..."
 rm -rf dist
 mkdir -p dist/lib
 
-# 3. Copy binary and libraries
 cp build/musicplayer dist/
 cp lib/libbass.so dist/lib/
 cp lib/libbass_aac.so dist/lib/
-
-# Also copy run scripts/helpers if needed
 cp run_import.sh dist/
 cp clean_flac.py dist/
 cp lrcput.py dist/
 cp extract_metadata.py dist/
 
-echo "=== Build and Package Completed! ==="
-echo "You can now run: cd dist && ./musicplayer"
+if [ "$MODE" = "static" ]; then
+    strip --strip-all dist/musicplayer
+    echo "Binary stripped."
+fi
+
+echo "=== Done ==="
+echo "Run: cd dist && ./musicplayer"
