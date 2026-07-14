@@ -206,14 +206,14 @@ void MainWindow::setupUI() {
     sidebarCard->setFixedWidth(300);
     
     QVBoxLayout *sidebarLayout = new QVBoxLayout(sidebarCard);
-    sidebarLayout->setContentsMargins(16, 16, 16, 16);
-    sidebarLayout->setSpacing(10);
+    sidebarLayout->setContentsMargins(16, 12, 16, 12);
+    sidebarLayout->setSpacing(8);
     
     // Cover image container
     QWidget *coverContainer = new QWidget(sidebarCard);
     coverContainer->setObjectName("coverContainer");
     QVBoxLayout *coverLayout = new QVBoxLayout(coverContainer);
-    coverLayout->setContentsMargins(10, 10, 10, 10);
+    coverLayout->setContentsMargins(8, 8, 8, 8);
     m_albumCoverImg = new QLabel(coverContainer);
     m_albumCoverImg->setAlignment(Qt::AlignCenter);
     coverLayout->addWidget(m_albumCoverImg);
@@ -249,7 +249,7 @@ void MainWindow::setupUI() {
     // Playback buttons layout
     QHBoxLayout *controlsLayout = new QHBoxLayout();
     controlsLayout->setSpacing(12);
-    controlsLayout->setAlignment(Qt::AlignCenter);
+    controlsLayout->addStretch();
     
     m_shuffleBtn = new QPushButton(sidebarCard);
     m_shuffleBtn->setProperty("class", "flatBtn");
@@ -284,6 +284,7 @@ void MainWindow::setupUI() {
     m_repeatBtn->setChecked(m_config->repeat_mode);
     connect(m_repeatBtn, &QPushButton::clicked, this, &MainWindow::onRepeatToggled);
     controlsLayout->addWidget(m_repeatBtn);
+    controlsLayout->addStretch();
     
     sidebarLayout->addLayout(controlsLayout);
     
