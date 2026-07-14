@@ -13,6 +13,7 @@
 #include <QScrollBar>
 #include <QFileInfo>
 #include <QDebug>
+#include <QRandomGenerator>
 
 // Helper recursive file counter
 static void count_recursive_qt(const QString &dir_path, int *count) {
@@ -977,9 +978,8 @@ void MainWindow::setupQueueForAlbum(Album *album, Song *start_song) {
         // Keep start_song at currentQueueIndex, shuffle the rest
         Song *active = m_queue.takeAt(m_currentQueueIndex);
         
-        // Fisher-Yates shuffle
         for (int i = m_queue.size() - 1; i > 0; --i) {
-            int j = rand() % (i + 1);
+            int j = QRandomGenerator::global()->bounded(i + 1);
             m_queue.swapItemsAt(i, j);
         }
         m_queue.insert(0, active);
