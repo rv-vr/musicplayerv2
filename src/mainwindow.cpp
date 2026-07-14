@@ -164,11 +164,16 @@ MainWindow::MainWindow(QWidget *parent)
 }
 
 MainWindow::~MainWindow() {
+    if (m_scanThread && m_scanThread->isRunning()) {
+        m_scanThread->quit();
+        m_scanThread->wait(3000);
+    }
+
     if (m_playStream) {
         BASS_StreamFree(m_playStream);
     }
     BASS_Free();
-    
+
     if (m_library) {
         library_free(m_library);
     }
@@ -178,7 +183,7 @@ MainWindow::~MainWindow() {
     if (m_currentLyrics) {
         lyrics_free(m_currentLyrics);
     }
-    
+
     if (m_importProcess && m_importProcess->state() != QProcess::NotRunning) {
         m_importProcess->kill();
         m_importProcess->waitForFinished();
