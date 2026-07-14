@@ -1284,9 +1284,8 @@ void MainWindow::onImportStart() {
     connect(m_importProcess, &QProcess::readyReadStandardOutput, this, &MainWindow::onImportReadyRead);
     connect(m_importProcess, &QProcess::readyReadStandardError, this, &MainWindow::onImportReadyRead);
     
-    // Qt 6 readyRead slots hook
-    typedef void (QProcess::*FinishedSignal)(int, QProcess::ExitStatus);
-    connect(m_importProcess, (FinishedSignal)&QProcess::finished, this, &MainWindow::onImportFinished);
+    connect(m_importProcess, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+            this, &MainWindow::onImportFinished);
     
     QStringList args;
     args << src;
