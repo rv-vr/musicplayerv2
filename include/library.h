@@ -76,4 +76,7 @@ void config_free(PlayerConfig *cfg);
 char *resolve_cover_art(const char *song_path);
 char *resolve_lyrics(const char *song_path);
 
+QStringList library_get_artists(MusicLibrary *lib);
+QList<Album*> library_get_albums_by_artist(MusicLibrary *lib, const QString &artist);
+
 #endif // LIBRARY_H

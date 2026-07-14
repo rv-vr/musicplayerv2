@@ -520,6 +520,30 @@ void config_free(PlayerConfig *cfg) {
     delete cfg;
 }
 
+QStringList library_get_artists(MusicLibrary *lib) {
+    QStringList artists;
+    if (!lib) return artists;
+    for (Album *album : lib->albums) {
+        QString artist = QString::fromUtf8(album->artist);
+        if (!artists.contains(artist)) {
+            artists.append(artist);
+        }
+    }
+    artists.sort();
+    return artists;
+}
+
+QList<Album*> library_get_albums_by_artist(MusicLibrary *lib, const QString &artist) {
+    QList<Album*> result;
+    if (!lib || artist.isEmpty()) return result;
+    for (Album *album : lib->albums) {
+        if (artist == QString::fromUtf8(album->artist)) {
+            result.append(album);
+        }
+    }
+    return result;
+}
+
 static QString findCoverInDir(const QString &dir) {
     const char *coverNames[] = {
         "cover.jpg", "cover.png", "folder.jpg", "folder.png",

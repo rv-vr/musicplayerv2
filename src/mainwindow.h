@@ -23,6 +23,7 @@
 #include <QCheckBox>
 #include <QProgressBar>
 #include <QPlainTextEdit>
+#include <QListWidget>
 #include <QAtomicInt>
 
 #include "library.h"
@@ -192,12 +193,23 @@ private:
 
     void setupHomeTab();
     void refreshRecentAlbums();
+    void setupArtistsTab();
+    void populateArtistList();
+    void populateArtistAlbumGrid(const QString &artist);
+    void populateArtistTrackList(Album *album);
 
     QLineEdit *m_searchEdit;
     QTreeView *m_searchResultsTreeView;
     QStandardItemModel *m_searchModel;
     QWidget *m_recentAlbumsWidget;
     QGridLayout *m_recentAlbumsLayout;
+
+    QListWidget *m_artistList;
+    QWidget *m_artistContentPanel;
+    QVBoxLayout *m_artistContentLayout;
+    QPushButton *m_artistBackBtn;
+    QString m_selectedArtist;
+    Album *m_selectedAlbum;
 
     QTimer *m_positionTimer;
 };
