@@ -719,19 +719,20 @@ void MainWindow::onAlbumSelected() {
     m_trackModel->removeRows(0, m_trackModel->rowCount());
 
     if (album) {
-        int track_idx = 1;
+        int track_idx = 0;
         for (Song *song : album->songs) {
             int min = (int)song->duration / 60;
             int sec = (int)song->duration % 60;
             QString durStr = QString("%1:%2").arg(min, 2, 10, QChar('0')).arg(sec, 2, 10, QChar('0'));
 
+            track_idx++;
             QString trackNoStr;
             if (song->disc_no > 1) {
                 trackNoStr = QString("%1-%2").arg(song->disc_no).arg(song->track_no, 2, 10, QChar('0'));
             } else if (song->track_no > 0) {
                 trackNoStr = QString("%1").arg(song->track_no, 2, 10, QChar('0'));
             } else {
-                trackNoStr = QString("%1").arg(track_idx++, 2, 10, QChar('0'));
+                trackNoStr = QString("%1").arg(track_idx, 2, 10, QChar('0'));
             }
 
             QList<QStandardItem*> row;
