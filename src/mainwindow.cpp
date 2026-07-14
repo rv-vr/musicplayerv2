@@ -248,8 +248,8 @@ void MainWindow::setupUI() {
     
     // Playback buttons layout
     QHBoxLayout *controlsLayout = new QHBoxLayout();
-    controlsLayout->setSpacing(12);
-    controlsLayout->addStretch();
+    controlsLayout->setContentsMargins(0, 0, 0, 0);
+    controlsLayout->setSpacing(8);
     
     m_shuffleBtn = new QPushButton(sidebarCard);
     m_shuffleBtn->setProperty("class", "flatBtn");
@@ -284,9 +284,8 @@ void MainWindow::setupUI() {
     m_repeatBtn->setChecked(m_config->repeat_mode);
     connect(m_repeatBtn, &QPushButton::clicked, this, &MainWindow::onRepeatToggled);
     controlsLayout->addWidget(m_repeatBtn);
-    controlsLayout->addStretch();
     
-    sidebarLayout->addLayout(controlsLayout);
+    sidebarLayout->addLayout(controlsLayout, Qt::AlignCenter);
     
     // Volume layout
     QHBoxLayout *volumeLayout = new QHBoxLayout();
