@@ -1329,10 +1329,10 @@ void MainWindow::onImportReadyRead() {
         QByteArray output = m_importProcess->readAllStandardOutput();
         QByteArray errOutput = m_importProcess->readAllStandardError();
         if (!output.isEmpty()) {
-            m_importLogView->appendPlainText(QString::fromUtf8(output));
+            m_importLogView->appendPlainText(QString::fromLocal8Bit(output));
         }
         if (!errOutput.isEmpty()) {
-            m_importLogView->appendPlainText(QString::fromUtf8(errOutput));
+            m_importLogView->appendPlainText(QString::fromLocal8Bit(errOutput));
         }
         
         // Auto scroll to bottom
