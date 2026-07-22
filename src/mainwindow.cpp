@@ -1084,10 +1084,10 @@ void MainWindow::updateAmbientBackground(const QString &coverPath) {
 
     QString cacheKey;
     if (coverPath.isEmpty() || !QFile::exists(coverPath)) {
-        cacheKey = cacheDir + "/top_ambient_v3.png";
+        cacheKey = cacheDir + "/top_ambient_v4.png";
     } else {
         QByteArray hash = QCryptographicHash::hash(coverPath.toUtf8(), QCryptographicHash::Md5).toHex();
-        cacheKey = cacheDir + "/" + QString(hash) + "_v3.png";
+        cacheKey = cacheDir + "/" + QString(hash) + "_v4.png";
     }
 
     QPixmap blurPixmap;
@@ -1104,44 +1104,42 @@ void MainWindow::updateAmbientBackground(const QString &coverPath) {
         QColor colorB = prominent.size() > 1 ? prominent.at(1) : colorA.lighter(130);
         QColor colorC = prominent.size() > 2 ? prominent.at(2) : colorB.darker(130);
 
-        QImage meshCanvas(600, 150, QImage::Format_ARGB32_Premultiplied);
+        QImage meshCanvas(1200, 200, QImage::Format_ARGB32_Premultiplied);
         meshCanvas.fill(QColor("#121215"));
 
         QPainter p(&meshCanvas);
         p.setRenderHint(QPainter::Antialiasing);
+        p.setRenderHint(QPainter::SmoothPixmapTransform);
 
-        QRadialGradient radialA(150, 75, 300);
+        QRadialGradient radialA(300, 100, 500);
         QColor colA_soft = colorA;
-        colA_soft.setAlpha(190);
+        colA_soft.setAlpha(170);
         radialA.setColorAt(0.0, colA_soft);
         radialA.setColorAt(1.0, QColor(18, 18, 21, 0));
         p.fillRect(meshCanvas.rect(), radialA);
 
-        QRadialGradient radialB(450, 75, 300);
+        QRadialGradient radialB(900, 100, 500);
         QColor colB_soft = colorB;
-        colB_soft.setAlpha(170);
+        colB_soft.setAlpha(150);
         radialB.setColorAt(0.0, colB_soft);
         radialB.setColorAt(1.0, QColor(18, 18, 21, 0));
         p.fillRect(meshCanvas.rect(), radialB);
 
-        QRadialGradient radialC(300, 30, 200);
+        QRadialGradient radialC(600, 50, 350);
         QColor colC_soft = colorC;
-        colC_soft.setAlpha(150);
+        colC_soft.setAlpha(130);
         radialC.setColorAt(0.0, colC_soft);
         radialC.setColorAt(1.0, QColor(18, 18, 21, 0));
         p.fillRect(meshCanvas.rect(), radialC);
 
-        QLinearGradient darkOverlay(0, 0, 0, 150);
-        darkOverlay.setColorAt(0.0, QColor(18, 18, 21, 100));
-        darkOverlay.setColorAt(1.0, QColor(18, 18, 21, 180));
+        QLinearGradient darkOverlay(0, 0, 0, 200);
+        darkOverlay.setColorAt(0.0, QColor(18, 18, 21, 90));
+        darkOverlay.setColorAt(1.0, QColor(18, 18, 21, 190));
         p.fillRect(meshCanvas.rect(), darkOverlay);
         p.end();
 
-        QImage blurred = meshCanvas.scaled(150, 37, Qt::IgnoreAspectRatio, Qt::SmoothTransformation)
-                                  .scaled(600, 150, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
-
-        blurred.save(cacheKey, "PNG");
-        blurPixmap = QPixmap::fromImage(blurred);
+        meshCanvas.save(cacheKey, "PNG");
+        blurPixmap = QPixmap::fromImage(meshCanvas);
     }
 
     m_ambientBackgroundLbl->setPixmap(blurPixmap);
