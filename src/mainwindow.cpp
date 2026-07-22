@@ -1014,25 +1014,35 @@ void MainWindow::loadSongLyrics(const QString &song_path) {
     m_lyricLabels.clear();
     m_activeLyricIndex = -1;
     
-    if (m_lyricsContainer->layout()) {
+    QVBoxLayout *vbox = static_cast<QVBoxLayout*>(m_lyricsContainer->layout());
+    if (vbox) {
         QLayoutItem *child;
-        while ((child = m_lyricsContainer->layout()->takeAt(0)) != nullptr) {
+        while ((child = vbox->takeAt(0)) != nullptr) {
             if (child->widget()) delete child->widget();
             delete child;
         }
+        vbox->setAlignment(Qt::AlignTop | Qt::AlignHCenter);
+        vbox->setContentsMargins(20, 0, 20, 0);
+        vbox->setSpacing(12);
     }
     
     m_currentLyrics.reset();
     
-    int pad = m_lyricsScroll->viewport()->height() > 0 ? m_lyricsScroll->viewport()->height() / 2 : 250;
-    static_cast<QVBoxLayout*>(m_lyricsContainer->layout())->addSpacing(pad);
+    int viewportW = (m_lyricsScroll && m_lyricsScroll->viewport()) ? m_lyricsScroll->viewport()->width() : 400;
+    int pad = (m_lyricsScroll && m_lyricsScroll->viewport() && m_lyricsScroll->viewport()->height() > 0) ? m_lyricsScroll->viewport()->height() / 2 : 250;
+    
+    if (m_lyricsContainer) {
+        m_lyricsContainer->setMinimumWidth(viewportW);
+    }
+
+    if (vbox) vbox->addSpacing(pad);
 
     if (song_path.isEmpty()) {
         QLabel *lbl = new QLabel("Lyrics Not Loaded", m_lyricsContainer);
         lbl->setAlignment(Qt::AlignCenter);
         lbl->setWordWrap(true);
         lbl->setStyleSheet("font-family: 'Inter', 'Noto Sans KR', 'NanumGothic', sans-serif; font-size: 16px; color: #9ca3af; font-weight: 600; padding: 12px 0;");
-        m_lyricsContainer->layout()->addWidget(lbl);
+        if (vbox) vbox->addWidget(lbl, 0, Qt::AlignHCenter);
         m_lyricLabels.append(lbl);
     } else {
         char *lrc_path = resolve_lyrics(song_path.toUtf8().constData());
@@ -1046,28 +1056,28 @@ void MainWindow::loadSongLyrics(const QString &song_path) {
                 QLabel *lbl = new QLabel(QString::fromUtf8(line.text), m_lyricsContainer);
                 lbl->setAlignment(Qt::AlignCenter);
                 lbl->setWordWrap(true);
-                lbl->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
                 lbl->setProperty("class", "lyric-line");
-                lbl->setStyleSheet("font-family: 'Inter', 'Noto Sans KR', 'NanumGothic', sans-serif; font-size: 16px; color: #9ca3af; padding: 12px 0; font-weight: 600; border: 1px solid;");
-                m_lyricsContainer->layout()->addWidget(lbl);
+                lbl->setStyleSheet("font-family: 'Inter', 'Noto Sans KR', 'NanumGothic', sans-serif; font-size: 16px; color: #9ca3af; padding: 12px 0; font-weight: 600;");
+                if (vbox) vbox->addWidget(lbl, 0, Qt::AlignHCenter);
                 m_lyricLabels.append(lbl);
             }
         } else {
             QLabel *lbl = new QLabel("Instrumental / No Lyrics Found", m_lyricsContainer);
             lbl->setAlignment(Qt::AlignCenter);
             lbl->setWordWrap(true);
-            lbl->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
-            lbl->setStyleSheet("font-family: 'Inter', 'Noto Sans KR', 'NanumGothic', sans-serif; font-size: 16px; color: #9ca3af; font-weight: 600; padding: 20px; border: 1px solid;");
-            m_lyricsContainer->layout()->addWidget(lbl);
+            lbl->setStyleSheet("font-family: 'Inter', 'Noto Sans KR', 'NanumGothic', sans-serif; font-size: 16px; color: #9ca3af; font-weight: 600; padding: 20px;");
+            if (vbox) vbox->addWidget(lbl, 0, Qt::AlignHCenter);
             m_lyricLabels.append(lbl);
         }
     }
 
-    static_cast<QVBoxLayout*>(m_lyricsContainer->layout())->addSpacing(pad);
-
-    // Pre-calculate layout geometry and scroll targets BEFORE playback starts
-    m_lyricsContainer->layout()->activate();
-    m_lyricsContainer->adjustSize();
+    if (vbox) {
+        vbox->addSpacing(pad);
+        vbox->activate();
+    }
+    if (m_lyricsContainer) {
+        m_lyricsContainer->adjustSize();
+    }
 
     m_lyricLineTargets.clear();
     int viewportHalf = m_lyricsScroll->viewport()->height() > 0 ? m_lyricsScroll->viewport()->height() / 2 : 250;
@@ -1085,7 +1095,7 @@ void MainWindow::updateLyricsDisplay(double position) {
     
     // Reset old highlighted lyric
     if (m_activeLyricIndex >= 0 && m_activeLyricIndex < m_lyricLabels.size()) {
-        m_lyricLabels.at(m_activeLyricIndex)->setStyleSheet("font-family: 'Inter', 'Noto Sans KR', 'NanumGothic', sans-serif; font-size: 16px; color: #9ca3af; padding: 12px 0; font-weight: 600; border: 1px solid;");
+        m_lyricLabels.at(m_activeLyricIndex)->setStyleSheet("font-family: 'Inter', 'Noto Sans KR', 'NanumGothic', sans-serif; font-size: 16px; color: #9ca3af; padding: 12px 0; font-weight: 600;");
     }
     
     m_activeLyricIndex = index;
@@ -1093,7 +1103,7 @@ void MainWindow::updateLyricsDisplay(double position) {
     // Highlight new active lyric (Spotify style: prominent 24px bold)
     if (m_activeLyricIndex >= 0 && m_activeLyricIndex < m_lyricLabels.size()) {
         QLabel *activeLabel = m_lyricLabels.at(m_activeLyricIndex);
-        activeLabel->setStyleSheet("font-family: 'Inter', 'Noto Sans KR', 'NanumGothic', sans-serif; font-size: 24px; color: #3c7fb1; padding: 16px 0; font-weight: 700; border: 1px solid;");
+        activeLabel->setStyleSheet("font-family: 'Inter', 'Noto Sans KR', 'NanumGothic', sans-serif; font-size: 48px; color: #3c7fb1; padding: 16px 0; font-weight: 700;");
         
         QScrollBar *vBar = m_lyricsScroll->verticalScrollBar();
         int viewportH = m_lyricsScroll->viewport()->height();
