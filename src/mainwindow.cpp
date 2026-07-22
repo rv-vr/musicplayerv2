@@ -433,7 +433,7 @@ void MainWindow::setupUI() {
     m_lyricsContainer = new QWidget(m_lyricsScroll);
     m_lyricsContainer->setStyleSheet("background-color: transparent;");
     QVBoxLayout *lyricsLayout = new QVBoxLayout(m_lyricsContainer);
-    lyricsLayout->setContentsMargins(96, 0, 96, 0);
+    lyricsLayout->setContentsMargins(0, 0, 0, 0);
     lyricsLayout->setSpacing(12);
     lyricsLayout->setAlignment(Qt::AlignTop | Qt::AlignHCenter);
     m_lyricsScroll->setWidget(m_lyricsContainer);
@@ -1047,7 +1047,7 @@ void MainWindow::loadSongLyrics(const QString &song_path) {
                 lbl->setAlignment(Qt::AlignCenter);
                 lbl->setWordWrap(true);
                 lbl->setProperty("class", "lyric-line");
-                lbl->setStyleSheet("font-family: 'Inter', 'Noto Sans KR', 'NanumGothic', sans-serif; font-size: 16px; color: #9ca3af; padding: 12px 0; font-weight: 600;");
+                lbl->setStyleSheet("font-family: 'Inter', 'Noto Sans KR', 'NanumGothic', sans-serif; font-size: 16px; color: #9ca3af; padding: 12px 0; font-weight: 600; border: 1px solid;");
                 m_lyricsContainer->layout()->addWidget(lbl);
                 m_lyricLabels.append(lbl);
             }
@@ -1055,13 +1055,24 @@ void MainWindow::loadSongLyrics(const QString &song_path) {
             QLabel *lbl = new QLabel("Instrumental / No Lyrics Found", m_lyricsContainer);
             lbl->setAlignment(Qt::AlignCenter);
             lbl->setWordWrap(true);
-            lbl->setStyleSheet("font-family: 'Inter', 'Noto Sans KR', 'NanumGothic', sans-serif; font-size: 16px; color: #9ca3af; font-weight: 600; padding: 20px;");
+            lbl->setStyleSheet("font-family: 'Inter', 'Noto Sans KR', 'NanumGothic', sans-serif; font-size: 16px; color: #9ca3af; font-weight: 600; padding: 20px; border: 1px solid;");
             m_lyricsContainer->layout()->addWidget(lbl);
             m_lyricLabels.append(lbl);
         }
     }
 
     static_cast<QVBoxLayout*>(m_lyricsContainer->layout())->addSpacing(pad);
+
+    // Pre-calculate layout geometry and scroll targets BEFORE playback starts
+    m_lyricsContainer->layout()->activate();
+    m_lyricsContainer->adjustSize();
+
+    m_lyricLineTargets.clear();
+    int viewportHalf = m_lyricsScroll->viewport()->height() > 0 ? m_lyricsScroll->viewport()->height() / 2 : 250;
+    for (QLabel *lbl : m_lyricLabels) {
+        int targetY = lbl->y() + (lbl->height() / 2) - viewportHalf;
+        m_lyricLineTargets.append(targetY);
+    }
 }
 
 void MainWindow::updateLyricsDisplay(double position) {
@@ -1072,7 +1083,7 @@ void MainWindow::updateLyricsDisplay(double position) {
     
     // Reset old highlighted lyric
     if (m_activeLyricIndex >= 0 && m_activeLyricIndex < m_lyricLabels.size()) {
-        m_lyricLabels.at(m_activeLyricIndex)->setStyleSheet("font-family: 'Inter', 'Noto Sans KR', 'NanumGothic', sans-serif; font-size: 16px; color: #9ca3af; padding: 12px 0; font-weight: 600;");
+        m_lyricLabels.at(m_activeLyricIndex)->setStyleSheet("font-family: 'Inter', 'Noto Sans KR', 'NanumGothic', sans-serif; font-size: 16px; color: #9ca3af; padding: 12px 0; font-weight: 600; border: 1px solid;");
     }
     
     m_activeLyricIndex = index;
@@ -1080,15 +1091,11 @@ void MainWindow::updateLyricsDisplay(double position) {
     // Highlight new active lyric (Spotify style: prominent 24px bold)
     if (m_activeLyricIndex >= 0 && m_activeLyricIndex < m_lyricLabels.size()) {
         QLabel *activeLabel = m_lyricLabels.at(m_activeLyricIndex);
-        activeLabel->setStyleSheet("font-family: 'Inter', 'Noto Sans KR', 'NanumGothic', sans-serif; font-size: 24px; color: #3c7fb1; font-weight: 700; padding: 16px 0;");
+        activeLabel->setStyleSheet("font-family: 'Inter', 'Noto Sans KR', 'NanumGothic', sans-serif; font-size: 24px; color: #3c7fb1; padding: 16px 0; font-weight: 700; border: 1px solid;");
         
-        // Force layout update so activeLabel geometry is exact before animation calculation
-        m_lyricsContainer->layout()->activate();
-        m_lyricsContainer->adjustSize();
-
-        // Spotify-style smooth scrolling animation (350ms OutCubic easing)
         QScrollBar *vBar = m_lyricsScroll->verticalScrollBar();
-        int targetY = activeLabel->y() + (activeLabel->height() / 2) - (m_lyricsScroll->viewport()->height() / 2);
+        int targetY = (m_activeLyricIndex < m_lyricLineTargets.size()) ? m_lyricLineTargets.at(m_activeLyricIndex)
+                                                                      : activeLabel->y() + (activeLabel->height() / 2) - (m_lyricsScroll->viewport()->height() / 2);
         targetY = qBound(vBar->minimum(), targetY, vBar->maximum());
 
         QPropertyAnimation *anim = new QPropertyAnimation(vBar, "value", m_lyricsScroll);
