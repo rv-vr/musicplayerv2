@@ -379,8 +379,8 @@ void MainWindow::setupUI() {
     m_playPauseBtn->setObjectName("topPlayBtn");
     m_playPauseBtn->setToolTip("Play / Pause (Space)");
     m_playPauseBtn->setAccessibleName("Play or Pause Track");
-    m_playPauseBtn->setIcon(recolorIcon("media-playback-start", QColor("#09090b"), 24));
-    m_playPauseBtn->setFixedSize(44, 44);
+    m_playPauseBtn->setIcon(recolorIcon("media-playback-start", QColor("#09090b"), 20));
+    m_playPauseBtn->setFixedSize(38, 38);
     connect(m_playPauseBtn, &QPushButton::clicked, this, &MainWindow::onPlayPauseClicked);
     ctrlRow->addWidget(m_playPauseBtn);
     
@@ -638,6 +638,7 @@ void MainWindow::setupArtistsTab() {
     m_artistList = new QListWidget(artistsTab);
     m_artistList->setObjectName("artistList");
     m_artistList->setFixedWidth(220);
+    m_artistList->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     connect(m_artistList, &QListWidget::currentTextChanged, this, [this](const QString &text) {
         m_selectedArtist = text;
         m_selectedAlbum = nullptr;
