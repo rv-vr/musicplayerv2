@@ -29,6 +29,7 @@
 
 #include "library.h"
 #include "lyrics.h"
+#include "importer.h"
 #include "bass.h"
 
 int count_audio_files(const QString &dir_path);
@@ -91,7 +92,6 @@ private slots:
     void onImportStart();
     void onImportStop();
     void onImportFinished(int exitCode, QProcess::ExitStatus exitStatus);
-    void onImportReadyRead();
 
     void onSettingsLibBrowse();
     void onSettingsDestBrowse();
@@ -142,7 +142,7 @@ private:
     bool m_scanIsRunning;
     QString m_scanPendingPath;
 
-    QProcess *m_importProcess;
+    QThread *m_importThread;
 
     QWidget *m_centralWidget;
 
