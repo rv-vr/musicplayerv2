@@ -233,12 +233,6 @@ void MainWindow::setupUI() {
     m_centralWidget = new QWidget(this);
     setCentralWidget(m_centralWidget);
     
-    m_ambientBackgroundLbl = new QLabel(this);
-    m_ambientBackgroundLbl->setScaledContents(true);
-    m_ambientBackgroundLbl->lower();
-    m_ambientBackgroundLbl->resize(this->size());
-    updateAmbientBackground(QString());
-    
     QVBoxLayout *mainLayout = new QVBoxLayout(m_centralWidget);
     mainLayout->setContentsMargins(0, 0, 0, 0);
     mainLayout->setSpacing(0);
@@ -246,10 +240,15 @@ void MainWindow::setupUI() {
     // -------------------------------------------------------------
     // TOP PLAYER BAR (Apple Music Style)
     // -------------------------------------------------------------
-    QWidget *topPlayerBar = new QWidget(m_centralWidget);
-    topPlayerBar->setObjectName("topPlayerBar");
+    m_topPlayerBar = new QWidget(m_centralWidget);
+    m_topPlayerBar->setObjectName("topPlayerBar");
     
-    QVBoxLayout *topBarLayout = new QVBoxLayout(topPlayerBar);
+    m_ambientBackgroundLbl = new QLabel(m_topPlayerBar);
+    m_ambientBackgroundLbl->setScaledContents(true);
+    m_ambientBackgroundLbl->lower();
+    updateAmbientBackground(QString());
+    
+    QVBoxLayout *topBarLayout = new QVBoxLayout(m_topPlayerBar);
     topBarLayout->setContentsMargins(16, 10, 16, 8);
     topBarLayout->setSpacing(8);
     
@@ -259,7 +258,7 @@ void MainWindow::setupUI() {
     topRow->setSpacing(12);
     
     // --- LEFT SECTION: Cover + Info ---
-    QWidget *leftSection = new QWidget(topPlayerBar);
+    QWidget *leftSection = new QWidget(m_topPlayerBar);
     leftSection->setObjectName("topLeftSection");
     QHBoxLayout *leftLayout = new QHBoxLayout(leftSection);
     leftLayout->setContentsMargins(0, 0, 0, 0);
@@ -294,7 +293,7 @@ void MainWindow::setupUI() {
     topRow->addWidget(leftSection, 1);
     
     // --- CENTER SECTION: Playback Controls ---
-    QWidget *centerSection = new QWidget(topPlayerBar);
+    QWidget *centerSection = new QWidget(m_topPlayerBar);
     centerSection->setObjectName("topCenterSection");
     QHBoxLayout *ctrlRow = new QHBoxLayout(centerSection);
     ctrlRow->setContentsMargins(0, 0, 0, 0);
@@ -340,7 +339,7 @@ void MainWindow::setupUI() {
     topRow->addWidget(centerSection, 1);
     
     // --- RIGHT SECTION: Volume ---
-    QWidget *rightSection = new QWidget(topPlayerBar);
+    QWidget *rightSection = new QWidget(m_topPlayerBar);
     rightSection->setObjectName("topRightSection");
     QHBoxLayout *rightLayout = new QHBoxLayout(rightSection);
     rightLayout->setContentsMargins(0, 0, 0, 0);
@@ -371,26 +370,26 @@ void MainWindow::setupUI() {
     seekRow->setContentsMargins(0, 4, 0, 0);
     seekRow->setSpacing(10);
     
-    m_timeLbl = new QLabel("00:00", topPlayerBar);
+    m_timeLbl = new QLabel("00:00", m_topPlayerBar);
     m_timeLbl->setObjectName("topTime");
     m_timeLbl->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
     m_timeLbl->setFixedWidth(42);
     seekRow->addWidget(m_timeLbl);
     
-    m_seekScale = new QSlider(Qt::Horizontal, topPlayerBar);
+    m_seekScale = new QSlider(Qt::Horizontal, m_topPlayerBar);
     m_seekScale->setObjectName("topSeek");
     m_seekScale->setRange(0, 1000);
     connect(m_seekScale, &QSlider::sliderMoved, this, &MainWindow::onSeekChanged);
     seekRow->addWidget(m_seekScale, 1);
     
-    m_totalTimeLbl = new QLabel("00:00", topPlayerBar);
+    m_totalTimeLbl = new QLabel("00:00", m_topPlayerBar);
     m_totalTimeLbl->setObjectName("topTotalTime");
     m_totalTimeLbl->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
     m_totalTimeLbl->setFixedWidth(42);
     seekRow->addWidget(m_totalTimeLbl);
     
     topBarLayout->addLayout(seekRow);
-    mainLayout->addWidget(topPlayerBar);
+    mainLayout->addWidget(m_topPlayerBar);
     
     // -------------------------------------------------------------
     // TAB WIDGET
@@ -1078,17 +1077,17 @@ static QList<QColor> extractProminentColors(const QImage &img) {
 }
 
 void MainWindow::updateAmbientBackground(const QString &coverPath) {
-    if (!m_ambientBackgroundLbl) return;
+    if (!m_ambientBackgroundLbl || !m_topPlayerBar) return;
 
     QString cacheDir = QDir::homePath() + "/.cache/musicplayerv2/blurs";
     QDir().mkpath(cacheDir);
 
     QString cacheKey;
     if (coverPath.isEmpty() || !QFile::exists(coverPath)) {
-        cacheKey = cacheDir + "/default_ambient_v2.jpg";
+        cacheKey = cacheDir + "/top_ambient_v3.png";
     } else {
         QByteArray hash = QCryptographicHash::hash(coverPath.toUtf8(), QCryptographicHash::Md5).toHex();
-        cacheKey = cacheDir + "/" + QString(hash) + "_v2.jpg";
+        cacheKey = cacheDir + "/" + QString(hash) + "_v3.png";
     }
 
     QPixmap blurPixmap;
@@ -1105,51 +1104,50 @@ void MainWindow::updateAmbientBackground(const QString &coverPath) {
         QColor colorB = prominent.size() > 1 ? prominent.at(1) : colorA.lighter(130);
         QColor colorC = prominent.size() > 2 ? prominent.at(2) : colorB.darker(130);
 
-        QImage meshCanvas(400, 400, QImage::Format_RGB32);
-        meshCanvas.fill(QColor("#09090b"));
+        QImage meshCanvas(600, 150, QImage::Format_ARGB32_Premultiplied);
+        meshCanvas.fill(QColor("#121215"));
 
         QPainter p(&meshCanvas);
         p.setRenderHint(QPainter::Antialiasing);
 
-        // Primary Color Radial Orb
-        QRadialGradient radialA(120, 120, 260);
+        QRadialGradient radialA(150, 75, 300);
         QColor colA_soft = colorA;
-        colA_soft.setAlpha(180);
+        colA_soft.setAlpha(190);
         radialA.setColorAt(0.0, colA_soft);
-        radialA.setColorAt(1.0, QColor(9, 9, 11, 0));
+        radialA.setColorAt(1.0, QColor(18, 18, 21, 0));
         p.fillRect(meshCanvas.rect(), radialA);
 
-        // Secondary Color Radial Orb
-        QRadialGradient radialB(280, 280, 260);
+        QRadialGradient radialB(450, 75, 300);
         QColor colB_soft = colorB;
-        colB_soft.setAlpha(160);
+        colB_soft.setAlpha(170);
         radialB.setColorAt(0.0, colB_soft);
-        radialB.setColorAt(1.0, QColor(9, 9, 11, 0));
+        radialB.setColorAt(1.0, QColor(18, 18, 21, 0));
         p.fillRect(meshCanvas.rect(), radialB);
 
-        // Tertiary Color Radial Orb
-        QRadialGradient radialC(320, 100, 200);
+        QRadialGradient radialC(300, 30, 200);
         QColor colC_soft = colorC;
-        colC_soft.setAlpha(140);
+        colC_soft.setAlpha(150);
         radialC.setColorAt(0.0, colC_soft);
-        radialC.setColorAt(1.0, QColor(9, 9, 11, 0));
+        radialC.setColorAt(1.0, QColor(18, 18, 21, 0));
         p.fillRect(meshCanvas.rect(), radialC);
 
-        // Dark Vignette Overlay
-        QLinearGradient darkOverlay(0, 0, 0, 400);
-        darkOverlay.setColorAt(0.0, QColor(9, 9, 11, 140));
-        darkOverlay.setColorAt(1.0, QColor(9, 9, 11, 230));
+        QLinearGradient darkOverlay(0, 0, 0, 150);
+        darkOverlay.setColorAt(0.0, QColor(18, 18, 21, 100));
+        darkOverlay.setColorAt(1.0, QColor(18, 18, 21, 180));
         p.fillRect(meshCanvas.rect(), darkOverlay);
         p.end();
 
-        QImage blurred = meshCanvas.scaled(80, 80, Qt::IgnoreAspectRatio, Qt::SmoothTransformation)
-                                  .scaled(400, 400, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+        QImage blurred = meshCanvas.scaled(150, 37, Qt::IgnoreAspectRatio, Qt::SmoothTransformation)
+                                  .scaled(600, 150, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
 
-        blurred.save(cacheKey, "JPG", 85);
+        blurred.save(cacheKey, "PNG");
         blurPixmap = QPixmap::fromImage(blurred);
     }
 
     m_ambientBackgroundLbl->setPixmap(blurPixmap);
+    if (m_topPlayerBar->size().width() > 0) {
+        m_ambientBackgroundLbl->resize(m_topPlayerBar->size());
+    }
 }
 
 void MainWindow::updateAlbumCover(const QString &song_path) {
@@ -1650,8 +1648,8 @@ void MainWindow::refreshRecentAlbums() {
 
 void MainWindow::resizeEvent(QResizeEvent *event) {
     QMainWindow::resizeEvent(event);
-    if (m_ambientBackgroundLbl) {
-        m_ambientBackgroundLbl->resize(event->size());
+    if (m_ambientBackgroundLbl && m_topPlayerBar) {
+        m_ambientBackgroundLbl->resize(m_topPlayerBar->size());
     }
     if (m_library && m_recentAlbumsWidget && m_recentAlbumsWidget->isVisible()) {
         static int last_num_rows = -1;
