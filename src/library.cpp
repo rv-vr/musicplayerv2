@@ -20,7 +20,19 @@
 #include <taglib/tag.h>
 #include <taglib/tpropertymap.h>
 #include <taglib/audioproperties.h>
+#include <taglib/flacfile.h>
+#include <taglib/flacpicture.h>
+#include <taglib/mpegfile.h>
+#include <taglib/id3v2tag.h>
+#include <taglib/attachedpictureframe.h>
+#include <taglib/mp4file.h>
+#include <taglib/mp4tag.h>
+#include <taglib/xiphcomment.h>
+#include <QCryptographicHash>
 #include "bass.h"
+
+static QString findCoverInDir(const QString &dir);
+static QString extractEmbeddedCover(const QString &songPath);
 
 struct ScanContext {
     MusicLibrary *lib;
@@ -434,15 +446,13 @@ void library_load_cached(MusicLibrary *lib) {
 
                 QFileInfo fi(fp);
                 QString parentDir = fi.absolutePath();
-                const char *coverNames[] = {
-                    "cover.jpg", "cover.png", "folder.jpg", "folder.png",
-                    "Cover.jpg", "Cover.png", "Folder.jpg", "Folder.png"
-                };
-                for (int i = 0; i < 8; i++) {
-                    QString covTest = parentDir + "/" + coverNames[i];
-                    if (QFile::exists(covTest)) {
-                        album->cover_path = covTest.toUtf8().constData();
-                        break;
+                QString cov = findCoverInDir(parentDir);
+                if (!cov.isEmpty()) {
+                    album->cover_path = cov.toUtf8().constData();
+                } else {
+                    QString emb = extractEmbeddedCover(QString::fromUtf8(fp));
+                    if (!emb.isEmpty()) {
+                        album->cover_path = emb.toUtf8().constData();
                     }
                 }
 
@@ -643,6 +653,128 @@ QList<Album*> library_get_albums_by_artist(MusicLibrary *lib, const QString &art
     return result;
 }
 
+static QString getCoverCacheDir() {
+    QString cacheDir = QStandardPaths::writableLocation(QStandardPaths::GenericCacheLocation) + "/musicplayerv2/covers";
+    QDir().mkpath(cacheDir);
+    return cacheDir;
+}
+
+static QString extractEmbeddedCover(const QString &songPath) {
+    if (songPath.isEmpty() || !QFile::exists(songPath)) return QString();
+
+    QByteArray pathBytes = songPath.toUtf8();
+    QString hash = QString(QCryptographicHash::hash(pathBytes, QCryptographicHash::Md5).toHex());
+    QString cachePath = getCoverCacheDir() + "/" + hash + ".jpg";
+
+    if (QFile::exists(cachePath)) {
+        return cachePath;
+    }
+
+    QByteArray imgData;
+    QString ext = QFileInfo(songPath).suffix().toLower();
+
+    if (ext == "flac") {
+        TagLib::FLAC::File flac(pathBytes.constData());
+        if (flac.isValid()) {
+            const auto &pics = flac.pictureList();
+            if (!pics.isEmpty()) {
+                imgData = QByteArray(pics.front()->data().data(), pics.front()->data().size());
+            }
+        }
+    } else if (ext == "mp3") {
+        TagLib::MPEG::File mpeg(pathBytes.constData());
+        if (mpeg.isValid() && mpeg.ID3v2Tag()) {
+            const auto &frames = mpeg.ID3v2Tag()->frameList("APIC");
+            if (!frames.isEmpty()) {
+                auto *picFrame = static_cast<TagLib::ID3v2::AttachedPictureFrame*>(frames.front());
+                imgData = QByteArray(picFrame->picture().data(), picFrame->picture().size());
+            }
+        }
+    } else if (ext == "m4a") {
+        TagLib::MP4::File mp4(pathBytes.constData());
+        if (mp4.isValid() && mp4.tag()) {
+            auto items = mp4.tag()->itemMap();
+            if (items.contains("covr")) {
+                auto covers = items["covr"].toCoverArtList();
+                if (!covers.isEmpty()) {
+                    imgData = QByteArray(covers.front().data().data(), covers.front().data().size());
+                }
+            }
+        }
+    }
+
+    if (!imgData.isEmpty()) {
+        QFile f(cachePath);
+        if (f.open(QIODevice::WriteOnly)) {
+            f.write(imgData);
+            f.close();
+            return cachePath;
+        }
+    }
+
+    return QString();
+}
+
+static QString getLyricsCacheDir() {
+    QString cacheDir = QStandardPaths::writableLocation(QStandardPaths::GenericCacheLocation) + "/musicplayerv2/lyrics";
+    QDir().mkpath(cacheDir);
+    return cacheDir;
+}
+
+static QString extractEmbeddedLyrics(const QString &songPath) {
+    if (songPath.isEmpty() || !QFile::exists(songPath)) return QString();
+
+    QByteArray pathBytes = songPath.toUtf8();
+    QString hash = QString(QCryptographicHash::hash(pathBytes, QCryptographicHash::Md5).toHex());
+    QString cachePath = getLyricsCacheDir() + "/" + hash + ".lrc";
+
+    if (QFile::exists(cachePath)) {
+        return cachePath;
+    }
+
+    std::string lyricsText;
+    QString ext = QFileInfo(songPath).suffix().toLower();
+
+    if (ext == "flac") {
+        TagLib::FLAC::File flac(pathBytes.constData());
+        if (flac.isValid() && flac.xiphComment()) {
+            auto map = flac.xiphComment()->fieldListMap();
+            if (map.contains("UNSYNCEDLYRICS") && !map["UNSYNCEDLYRICS"].isEmpty()) {
+                lyricsText = map["UNSYNCEDLYRICS"].front().to8Bit(true);
+            } else if (map.contains("LYRICS") && !map["LYRICS"].isEmpty()) {
+                lyricsText = map["LYRICS"].front().to8Bit(true);
+            }
+        }
+    } else if (ext == "mp3") {
+        TagLib::MPEG::File mpeg(pathBytes.constData());
+        if (mpeg.isValid() && mpeg.ID3v2Tag()) {
+            const auto &frames = mpeg.ID3v2Tag()->frameList("USLT");
+            if (!frames.isEmpty()) {
+                lyricsText = frames.front()->toString().to8Bit(true);
+            }
+        }
+    } else if (ext == "m4a") {
+        TagLib::MP4::File mp4(pathBytes.constData());
+        if (mp4.isValid() && mp4.tag()) {
+            auto items = mp4.tag()->itemMap();
+            if (items.contains("©lyr") && !items["©lyr"].toStringList().isEmpty()) {
+                lyricsText = items["©lyr"].toStringList().front().to8Bit(true);
+            }
+        }
+    }
+
+    if (!lyricsText.empty()) {
+        QFile f(cachePath);
+        if (f.open(QIODevice::WriteOnly)) {
+            f.write(lyricsText.c_str(), lyricsText.size());
+            f.close();
+            return cachePath;
+        }
+    }
+
+    return QString();
+}
+
 static QString findCoverInDir(const QString &dir) {
     const char *coverNames[] = {
         "cover.jpg", "cover.png", "folder.jpg", "folder.png",
@@ -662,8 +794,13 @@ char *resolve_cover_art(const char *song_path) {
     QFileInfo fi(sp);
     QString dir = fi.absolutePath();
 
+    // 1. Sidecar file in parent directory
     QString coverPath = findCoverInDir(dir);
     if (!coverPath.isEmpty()) return strdup(coverPath.toUtf8().constData());
+
+    // 2. Embedded artwork extraction & disk cache
+    QString embeddedPath = extractEmbeddedCover(sp);
+    if (!embeddedPath.isEmpty()) return strdup(embeddedPath.toUtf8().constData());
 
     return nullptr;
 }
@@ -671,13 +808,18 @@ char *resolve_cover_art(const char *song_path) {
 char *resolve_lyrics(const char *song_path) {
     if (!song_path) return nullptr;
 
-    // Sidecar .lrc
-    QString lrcPath = QString::fromUtf8(song_path);
-    int dot = lrcPath.lastIndexOf('.');
+    QString sp = QString::fromUtf8(song_path);
+
+    // 1. Sidecar .lrc
+    int dot = sp.lastIndexOf('.');
     if (dot >= 0) {
-        lrcPath = lrcPath.left(dot) + ".lrc";
+        QString lrcPath = sp.left(dot) + ".lrc";
         if (QFile::exists(lrcPath)) return strdup(lrcPath.toUtf8().constData());
     }
+
+    // 2. Embedded lyrics extraction & disk cache
+    QString embeddedPath = extractEmbeddedLyrics(sp);
+    if (!embeddedPath.isEmpty()) return strdup(embeddedPath.toUtf8().constData());
 
     return nullptr;
 }
