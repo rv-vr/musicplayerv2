@@ -40,7 +40,7 @@ struct ScanContext {
     sqlite3 *db;
     QHash<QString, bool> visited;
     QString rootPath;
-    QAtomicInt *scannedCounter;
+    std::atomic<int> *scannedCounter;
     QMutex dbMutex;
     QMutex libMutex;
 };
@@ -62,7 +62,6 @@ MusicLibrary *library_new() {
 
 void library_free(MusicLibrary *lib) {
     if (!lib) return;
-    qDeleteAll(lib->albums);
     delete lib;
 }
 
@@ -97,7 +96,11 @@ static sqlite3 *dbInit() {
         sqlite3_close(db);
         QFile::remove(getDbPath());
         dbPath = getDbPath();
-        sqlite3_open(dbPath.toUtf8().constData(), &db);
+        rc = sqlite3_open(dbPath.toUtf8().constData(), &db);
+        if (rc != SQLITE_OK) {
+            if (db) sqlite3_close(db);
+            return nullptr;
+        }
         sqlite3_exec(db, sql, nullptr, nullptr, nullptr);
     } else {
         sqlite3_stmt *chkStmt;
@@ -484,7 +487,7 @@ void library_load_cached(MusicLibrary *lib) {
     }
 }
 
-void library_scan(MusicLibrary *lib, const QString &rootPath, QAtomicInt *scannedCounter, QAtomicInt *totalCounter) {
+void library_scan(MusicLibrary *lib, const QString &rootPath, std::atomic<int> *scannedCounter, std::atomic<int> *totalCounter) {
     if (lib) {
         qDeleteAll(lib->albums);
         lib->albums.clear();
@@ -498,7 +501,7 @@ void library_scan(MusicLibrary *lib, const QString &rootPath, QAtomicInt *scanne
     gatherFilesRecursive(rootPath, files);
 
     if (totalCounter) {
-        totalCounter->storeRelaxed(files.size());
+        totalCounter->store(files.size());
     }
 
     // Init DB
@@ -513,7 +516,7 @@ void library_scan(MusicLibrary *lib, const QString &rootPath, QAtomicInt *scanne
     ctx.scannedCounter = scannedCounter;
 
     QThreadPool pool;
-    pool.setMaxThreadCount(8);
+    pool.setMaxThreadCount(QThread::idealThreadCount() > 0 ? QThread::idealThreadCount() : 4);
 
     QList<ScanTask> tasks;
     for (const QString &fp : files) {
@@ -545,14 +548,14 @@ void library_scan(MusicLibrary *lib, const QString &rootPath, QAtomicInt *scanne
     }
 }
 
-Album *library_find_album(MusicLibrary *lib, const char *artist, const char *album_name) {
+Album *library_find_album(const MusicLibrary *lib, const char *artist, const char *album_name) {
     if (!lib || !album_name) return nullptr;
     QString key = (QString::fromUtf8(artist ? artist : "Unknown Artist")
                   + " - " + QString::fromUtf8(album_name)).toLower();
     return lib->albumMap.value(key, nullptr);
 }
 
-QList<Album *> library_get_recent_albums(MusicLibrary *lib, int limit) {
+QList<Album *> library_get_recent_albums(const MusicLibrary *lib, int limit) {
     QList<Album *> recentList;
     sqlite3 *db = dbInit();
     if (!db) return recentList;
@@ -630,20 +633,20 @@ void config_free(PlayerConfig *cfg) {
     delete cfg;
 }
 
-QStringList library_get_artists(MusicLibrary *lib) {
-    QStringList artists;
-    if (!lib) return artists;
+QStringList library_get_artists(const MusicLibrary *lib) {
+    if (!lib) return {};
+    QSet<QString> artistSet;
     for (const auto *album : lib->albums) {
-        QString artist = QString::fromStdString(album->artist);
-        if (!artists.contains(artist)) {
-            artists.append(artist);
+        if (!album->artist.empty()) {
+            artistSet.insert(QString::fromStdString(album->artist));
         }
     }
-    artists.sort();
+    QStringList artists = artistSet.values();
+    artists.sort(Qt::CaseInsensitive);
     return artists;
 }
 
-QList<Album*> library_get_albums_by_artist(MusicLibrary *lib, const QString &artist) {
+QList<Album*> library_get_albums_by_artist(const MusicLibrary *lib, const QString &artist) {
     QList<Album*> result;
     if (!lib || artist.isEmpty()) return result;
     for (auto *album : lib->albums) {
