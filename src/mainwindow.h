@@ -27,7 +27,7 @@
 #include <QProgressBar>
 #include <QPlainTextEdit>
 #include <QListWidget>
-#include <QAtomicInt>
+#include <atomic>
 #include <QFileSystemWatcher>
 
 #include "library.h"
@@ -40,7 +40,7 @@ int count_audio_files(const QString &dir_path);
 class ScanWorker : public QObject {
     Q_OBJECT
 public:
-    ScanWorker(const QString &path, MusicLibrary *lib, QAtomicInt *counter, QAtomicInt *totalCounter)
+    ScanWorker(const QString &path, MusicLibrary *lib, std::atomic<int> *counter, std::atomic<int> *totalCounter)
         : m_path(path), m_lib(lib), m_counter(counter), m_totalCounter(totalCounter) {}
 
 signals:
@@ -53,8 +53,8 @@ public slots:
 private:
     QString m_path;
     MusicLibrary *m_lib;
-    QAtomicInt *m_counter;
-    QAtomicInt *m_totalCounter;
+    std::atomic<int> *m_counter;
+    std::atomic<int> *m_totalCounter;
 };
 
 class AlbumCard : public QFrame {
@@ -142,8 +142,8 @@ private:
     QList<QLabel*> m_lyricLabels;
 
     QThread *m_scanThread;
-    QAtomicInt m_scanScannedCount;
-    QAtomicInt m_scanTotalCount;
+    std::atomic<int> m_scanScannedCount{0};
+    std::atomic<int> m_scanTotalCount{0};
     bool m_scanIsRunning;
     QString m_scanPendingPath;
 
