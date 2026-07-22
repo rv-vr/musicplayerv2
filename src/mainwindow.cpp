@@ -141,6 +141,33 @@ void ScanWorker::run() {
     emit finished(m_lib);
 }
 
+SmoothScrollFilter::SmoothScrollFilter(QObject *parent) : QObject(parent) {}
+
+bool SmoothScrollFilter::eventFilter(QObject *watched, QEvent *event) {
+    if (event->type() == QEvent::Wheel) {
+        QWheelEvent *wheelEvent = static_cast<QWheelEvent*>(event);
+        int delta = wheelEvent->angleDelta().y();
+        if (delta == 0) return false;
+
+        QAbstractScrollArea *scrollArea = qobject_cast<QAbstractScrollArea*>(watched);
+        QScrollBar *vBar = scrollArea ? scrollArea->verticalScrollBar() : qobject_cast<QScrollBar*>(watched);
+        if (!vBar || !vBar->isVisible()) return false;
+
+        int step = -delta;
+        int current = vBar->value();
+        int target = std::clamp(current + step, vBar->minimum(), vBar->maximum());
+
+        QPropertyAnimation *anim = new QPropertyAnimation(vBar, "value", watched);
+        anim->setDuration(220);
+        anim->setStartValue(current);
+        anim->setEndValue(target);
+        anim->setEasingCurve(QEasingCurve::OutCubic);
+        anim->start(QAbstractAnimation::DeleteWhenStopped);
+        return true;
+    }
+    return QObject::eventFilter(watched, event);
+}
+
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent),
       m_playStream(0),
@@ -241,6 +268,7 @@ MainWindow::~MainWindow() {
 }
 
 void MainWindow::setupUI() {
+    m_smoothScrollFilter = new SmoothScrollFilter(this);
     m_centralWidget = new QWidget(this);
     setCentralWidget(m_centralWidget);
     
@@ -458,6 +486,7 @@ void MainWindow::setupUI() {
     m_queueTreeView->header()->setSectionResizeMode(2, QHeaderView::Stretch);
     m_queueTreeView->header()->setSectionResizeMode(3, QHeaderView::ResizeToContents);
     connect(m_queueTreeView, &QTreeView::doubleClicked, this, &MainWindow::onQueueActivated);
+    m_queueTreeView->viewport()->installEventFilter(m_smoothScrollFilter);
     queueLayout->addWidget(m_queueTreeView);
     
     QHBoxLayout *queueBtnLayout = new QHBoxLayout();
@@ -478,6 +507,7 @@ void MainWindow::setupUI() {
     m_lyricsScroll->setWidgetResizable(true);
     m_lyricsScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     m_lyricsScroll->setStyleSheet("QScrollArea { border: none; background: transparent; }");
+    m_lyricsScroll->viewport()->installEventFilter(m_smoothScrollFilter);
     m_lyricsContainer = new QWidget(m_lyricsScroll);
     m_lyricsContainer->setStyleSheet("background-color: transparent;");
     QVBoxLayout *lyricsLayout = new QVBoxLayout(m_lyricsContainer);
@@ -613,6 +643,7 @@ void MainWindow::setupArtistsTab() {
         m_selectedAlbum = nullptr;
         populateArtistAlbumGrid(text);
     });
+    m_artistList->viewport()->installEventFilter(m_smoothScrollFilter);
     artistsLayout->addWidget(m_artistList);
     
     QFrame *divider = new QFrame(artistsTab);
@@ -1624,6 +1655,7 @@ void MainWindow::setupHomeTab() {
     m_searchModel->setHeaderData(5, Qt::Horizontal, "SongPtr");
     
     m_searchResultsTreeView->setModel(m_searchModel);
+    m_searchResultsTreeView->viewport()->installEventFilter(m_smoothScrollFilter);
     m_searchResultsTreeView->setColumnHidden(5, true);
     m_searchResultsTreeView->header()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
     m_searchResultsTreeView->header()->setSectionResizeMode(1, QHeaderView::Stretch);
