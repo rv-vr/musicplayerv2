@@ -57,6 +57,14 @@ private:
     std::atomic<int> *m_totalCounter;
 };
 
+class SmoothScrollFilter : public QObject {
+    Q_OBJECT
+public:
+    explicit SmoothScrollFilter(QObject *parent = nullptr);
+protected:
+    bool eventFilter(QObject *watched, QEvent *event) override;
+};
+
 class AlbumCard : public QFrame {
     Q_OBJECT
 public:
@@ -142,6 +150,7 @@ private:
     int m_activeLyricIndex;
     QList<QLabel*> m_lyricLabels;
 
+    SmoothScrollFilter *m_smoothScrollFilter;
     QThread *m_scanThread;
     std::atomic<int> m_scanScannedCount{0};
     std::atomic<int> m_scanTotalCount{0};
