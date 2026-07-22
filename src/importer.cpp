@@ -6,6 +6,7 @@
 #include <QProcess>
 #include <QRegularExpression>
 #include <QStandardPaths>
+#include <QThread>
 #include <QDebug>
 
 #include <taglib/flacfile.h>
@@ -70,6 +71,10 @@ void ImporterWorker::process() {
     const QString explicitPattern = " [Explicit]";
 
     for (int i = 0; i < flacFiles.size(); ++i) {
+        if (QThread::currentThread()->isInterruptionRequested()) {
+            emit logMessage("Import cancelled by user.");
+            break;
+        }
         const QString &flacPath = flacFiles[i];
         QFileInfo fi(flacPath);
         QString stem = fi.completeBaseName();
