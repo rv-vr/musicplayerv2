@@ -16,6 +16,10 @@
 #include <cstring>
 #include <sys/stat.h>
 #include <sqlite3.h>
+#include <taglib/fileref.h>
+#include <taglib/tag.h>
+#include <taglib/tpropertymap.h>
+#include <taglib/audioproperties.h>
 #include "bass.h"
 
 struct ScanContext {
@@ -218,30 +222,38 @@ static void scanFile(const ScanTask &task) {
         }
     }
 
-    // Extract metadata if not cached
+    // Extract metadata using TagLib if not cached
     if (!cachedFound) {
-        QProcess proc;
-        QStringList args;
-        args << fullPath << "--info";
+        TagLib::FileRef f(fullPathC);
+        if (!f.isNull() && f.tag()) {
+            TagLib::Tag *tag = f.tag();
+            std::string t = tag->title().to8Bit(true);
+            std::string a = tag->artist().to8Bit(true);
+            std::string al = tag->album().to8Bit(true);
 
-        QString appDir = QCoreApplication::applicationDirPath();
-        QString scriptPath = appDir + "/extract_metadata.py";
-        if (!QFile::exists(scriptPath)) {
-            scriptPath = appDir + "/../extract_metadata.py";
-        }
+            if (!t.empty()) title = strdup(t.c_str());
+            if (!a.empty()) artist_name = strdup(a.c_str());
+            if (!al.empty()) album_name = strdup(al.c_str());
 
-        proc.start("python3", QStringList() << scriptPath << fullPath << "--info");
-        if (proc.waitForFinished(30000) && proc.exitCode() == 0) {
-            QByteArray stdoutData = proc.readAllStandardOutput();
-            QList<QByteArray> lines = stdoutData.split('\n');
-            for (const QByteArray &line : lines) {
-                if (line.startsWith("title: ")) title = strdup(line.constData() + 7);
-                else if (line.startsWith("artist: ")) artist_name = strdup(line.constData() + 8);
-                else if (line.startsWith("album: ")) album_name = strdup(line.constData() + 7);
-                else if (line.startsWith("album_artist: ")) album_artist = strdup(line.constData() + 14);
-                else if (line.startsWith("track: ")) track_no = atoi(line.constData() + 7);
-                else if (line.startsWith("disc: ")) disc_no = atoi(line.constData() + 6);
-                else if (line.startsWith("duration: ")) duration = strtod(line.constData() + 10, nullptr);
+            track_no = tag->track();
+
+            if (f.audioProperties()) {
+                duration = f.audioProperties()->lengthInSeconds();
+            }
+
+            TagLib::PropertyMap properties = f.file()->properties();
+            if (properties.contains("ALBUMARTIST")) {
+                std::string aa = properties["ALBUMARTIST"].front().to8Bit(true);
+                if (!aa.empty()) album_artist = strdup(aa.c_str());
+            } else if (properties.contains("ALBUM ARTIST")) {
+                std::string aa = properties["ALBUM ARTIST"].front().to8Bit(true);
+                if (!aa.empty()) album_artist = strdup(aa.c_str());
+            }
+
+            if (properties.contains("DISCNUMBER")) {
+                std::string dn = properties["DISCNUMBER"].front().to8Bit(true);
+                int d = std::atoi(dn.c_str());
+                if (d > 0) disc_no = d;
             }
         }
 
