@@ -1069,7 +1069,7 @@ void MainWindow::startAsyncScan(const QString &path) {
     m_statusLabel->setText("Calculating library files...");
     
     m_scanThread = new QThread(this);
-    ScanWorker *worker = new ScanWorker(path, library_new(), &m_scanScannedCount, &m_scanTotalCount);
+    ScanWorker *worker = new ScanWorker(path, nullptr, &m_scanScannedCount, &m_scanTotalCount);
     worker->moveToThread(m_scanThread);
     
     connect(m_scanThread, &QThread::started, worker, &ScanWorker::run);
@@ -1094,7 +1094,39 @@ void MainWindow::onScanFinished(MusicLibrary *temp_lib) {
     m_scanThread->quit();
     m_scanThread->wait();
     
-    m_library.reset(temp_lib);
+    if (temp_lib) {
+        library_free(temp_lib);
+    }
+
+    m_selectedAlbum = nullptr;
+    m_selectedArtist.clear();
+    m_queue.clear();
+    m_currentQueueIndex = -1;
+
+    if (m_queueModel) m_queueModel->removeRows(0, m_queueModel->rowCount());
+    if (m_searchModel) m_searchModel->removeRows(0, m_searchModel->rowCount());
+
+    if (m_recentAlbumsLayout) {
+        QLayoutItem *child;
+        while ((child = m_recentAlbumsLayout->takeAt(0)) != nullptr) {
+            if (child->widget()) {
+                delete child->widget();
+            }
+            delete child;
+        }
+    }
+
+    if (m_artistContentLayout) {
+        QLayoutItem *child;
+        while ((child = m_artistContentLayout->takeAt(1)) != nullptr) {
+            if (child->widget()) {
+                delete child->widget();
+            }
+            delete child;
+        }
+    }
+
+    library_load_cached(m_library.get());
     
     refreshRecentAlbums();
     populateArtistList();
@@ -1327,7 +1359,7 @@ void MainWindow::refreshRecentAlbums() {
     QLayoutItem *child;
     while ((child = m_recentAlbumsLayout->takeAt(0)) != nullptr) {
         if (child->widget()) {
-            child->widget()->deleteLater();
+            delete child->widget();
         }
         delete child;
     }
