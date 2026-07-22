@@ -25,6 +25,7 @@ struct Album {
 
     ~Album() {
         qDeleteAll(songs);
+        songs.clear();
     }
 };
 
@@ -34,6 +35,8 @@ struct MusicLibrary {
 
     ~MusicLibrary() {
         qDeleteAll(albums);
+        albums.clear();
+        albumMap.clear();
     }
 };
 
