@@ -23,6 +23,7 @@ pkg_check_modules(SQLITE3 REQUIRED sqlite3)
 
 find_library(BASS_LIB NAMES bass PATHS ${CMAKE_CURRENT_SOURCE_DIR}/lib NO_DEFAULT_PATH)
 find_library(BASS_AAC_LIB NAMES bass_aac PATHS ${CMAKE_CURRENT_SOURCE_DIR}/lib NO_DEFAULT_PATH)
+find_library(BASS_FLAC_LIB NAMES bassflac PATHS ${CMAKE_CURRENT_SOURCE_DIR}/lib NO_DEFAULT_PATH)
 
 include_directories(include ${SQLITE3_INCLUDE_DIRS})
 
@@ -38,6 +39,7 @@ target_link_libraries(musicplayer PRIVATE
     ${SQLITE3_LIBRARIES}
     ${BASS_LIB}
     ${BASS_AAC_LIB}
+    ${BASS_FLAC_LIB}
     m
 )
 
