@@ -4,7 +4,8 @@
 #include <QString>
 #include <QList>
 #include <QHash>
-#include <QAtomicInt>
+#include <QMetaType>
+#include <atomic>
 #include <string>
 
 struct Song {
@@ -18,11 +19,13 @@ struct Song {
 };
 
 struct Album {
+    Q_DISABLE_COPY_MOVE(Album)
     std::string name;
     std::string artist;
     QList<Song*> songs;
     std::string cover_path;
 
+    Album() = default;
     ~Album() {
         qDeleteAll(songs);
         songs.clear();
@@ -30,9 +33,11 @@ struct Album {
 };
 
 struct MusicLibrary {
+    Q_DISABLE_COPY_MOVE(MusicLibrary)
     QList<Album*> albums;
     QHash<QString, Album*> albumMap;
 
+    MusicLibrary() = default;
     ~MusicLibrary() {
         qDeleteAll(albums);
         albums.clear();
@@ -51,9 +56,9 @@ struct PlayerConfig {
 MusicLibrary *library_new();
 void library_free(MusicLibrary *lib);
 void library_load_cached(MusicLibrary *lib);
-void library_scan(MusicLibrary *lib, const QString &rootPath, QAtomicInt *scannedCounter, QAtomicInt *totalCounter = nullptr);
-Album *library_find_album(MusicLibrary *lib, const char *artist, const char *album_name);
-QList<Album*> library_get_recent_albums(MusicLibrary *lib, int limit);
+void library_scan(MusicLibrary *lib, const QString &rootPath, std::atomic<int> *scannedCounter, std::atomic<int> *totalCounter = nullptr);
+Album *library_find_album(const MusicLibrary *lib, const char *artist, const char *album_name);
+QList<Album*> library_get_recent_albums(const MusicLibrary *lib, int limit);
 
 PlayerConfig *config_load();
 void config_save(PlayerConfig *cfg);
@@ -62,7 +67,9 @@ void config_free(PlayerConfig *cfg);
 char *resolve_cover_art(const char *song_path);
 char *resolve_lyrics(const char *song_path);
 
-QStringList library_get_artists(MusicLibrary *lib);
-QList<Album*> library_get_albums_by_artist(MusicLibrary *lib, const QString &artist);
+QStringList library_get_artists(const MusicLibrary *lib);
+QList<Album*> library_get_albums_by_artist(const MusicLibrary *lib, const QString &artist);
+
+Q_DECLARE_METATYPE(Song*)
 
 #endif // LIBRARY_H
