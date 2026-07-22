@@ -417,8 +417,8 @@ void MainWindow::setupUI() {
     m_lyricsContainer = new QWidget(m_lyricsScroll);
     m_lyricsContainer->setStyleSheet("background-color: transparent;");
     QVBoxLayout *lyricsLayout = new QVBoxLayout(m_lyricsContainer);
-    lyricsLayout->setContentsMargins(20, 180, 20, 180);
-    lyricsLayout->setSpacing(8);
+    lyricsLayout->setContentsMargins(20, 0, 20, 0);
+    lyricsLayout->setSpacing(12);
     lyricsLayout->setAlignment(Qt::AlignTop | Qt::AlignHCenter);
     m_lyricsScroll->setWidget(m_lyricsContainer);
     m_tabs->addTab(m_lyricsScroll, "Lyrics");
@@ -998,41 +998,54 @@ void MainWindow::loadSongLyrics(const QString &song_path) {
     m_lyricLabels.clear();
     m_activeLyricIndex = -1;
     
+    if (m_lyricsContainer->layout()) {
+        QLayoutItem *child;
+        while ((child = m_lyricsContainer->layout()->takeAt(0)) != nullptr) {
+            if (child->widget()) delete child->widget();
+            delete child;
+        }
+    }
+    
     m_currentLyrics.reset();
     
+    int pad = m_lyricsScroll->viewport()->height() > 0 ? m_lyricsScroll->viewport()->height() / 2 : 250;
+    static_cast<QVBoxLayout*>(m_lyricsContainer->layout())->addSpacing(pad);
+
     if (song_path.isEmpty()) {
         QLabel *lbl = new QLabel("Lyrics Not Loaded", m_lyricsContainer);
         lbl->setAlignment(Qt::AlignCenter);
-        lbl->setStyleSheet("font-size: 16px; color: #9ca3af; font-weight: 500; padding: 20px;");
+        lbl->setWordWrap(true);
+        lbl->setStyleSheet("font-family: 'Inter', 'Noto Sans KR', 'NanumGothic', sans-serif; font-size: 16px; color: #9ca3af; font-weight: 600; padding: 12px 0;");
         m_lyricsContainer->layout()->addWidget(lbl);
         m_lyricLabels.append(lbl);
-        return;
-    }
-    
-    char *lrc_path = resolve_lyrics(song_path.toUtf8().constData());
-    if (lrc_path && QFile::exists(lrc_path)) {
-        m_currentLyrics.reset(lyrics_load(lrc_path));
-    }
-    free(lrc_path);
-    
-    if (m_currentLyrics && !m_currentLyrics->lines.isEmpty()) {
-        for (const LyricLine &line : m_currentLyrics->lines) {
-            QLabel *lbl = new QLabel(QString::fromUtf8(line.text), m_lyricsContainer);
+    } else {
+        char *lrc_path = resolve_lyrics(song_path.toUtf8().constData());
+        if (lrc_path && QFile::exists(lrc_path)) {
+            m_currentLyrics.reset(lyrics_load(lrc_path));
+        }
+        free(lrc_path);
+        
+        if (m_currentLyrics && !m_currentLyrics->lines.isEmpty()) {
+            for (const LyricLine &line : m_currentLyrics->lines) {
+                QLabel *lbl = new QLabel(QString::fromUtf8(line.text), m_lyricsContainer);
+                lbl->setAlignment(Qt::AlignCenter);
+                lbl->setWordWrap(true);
+                lbl->setProperty("class", "lyric-line");
+                lbl->setStyleSheet("font-family: 'Inter', 'Noto Sans KR', 'NanumGothic', sans-serif; font-size: 16px; color: #9ca3af; padding: 12px 0; font-weight: 600;");
+                m_lyricsContainer->layout()->addWidget(lbl);
+                m_lyricLabels.append(lbl);
+            }
+        } else {
+            QLabel *lbl = new QLabel("Instrumental / No Lyrics Found", m_lyricsContainer);
             lbl->setAlignment(Qt::AlignCenter);
             lbl->setWordWrap(true);
-            lbl->setProperty("class", "lyric-line");
-            lbl->setStyleSheet("font-family: 'Inter', 'Noto Sans KR', 'NanumGothic', sans-serif; font-size: 16px; color: #9ca3af; padding: 10px 0; font-weight: 600;");
+            lbl->setStyleSheet("font-family: 'Inter', 'Noto Sans KR', 'NanumGothic', sans-serif; font-size: 16px; color: #9ca3af; font-weight: 600; padding: 20px;");
             m_lyricsContainer->layout()->addWidget(lbl);
             m_lyricLabels.append(lbl);
         }
-    } else {
-        QLabel *lbl = new QLabel("Instrumental / No Lyrics Found", m_lyricsContainer);
-        lbl->setAlignment(Qt::AlignCenter);
-        lbl->setWordWrap(true);
-        lbl->setStyleSheet("font-family: 'Inter', 'Noto Sans KR', 'NanumGothic', sans-serif; font-size: 16px; color: #9ca3af; font-weight: 600; padding: 20px;");
-        m_lyricsContainer->layout()->addWidget(lbl);
-        m_lyricLabels.append(lbl);
     }
+
+    static_cast<QVBoxLayout*>(m_lyricsContainer->layout())->addSpacing(pad);
 }
 
 void MainWindow::updateLyricsDisplay(double position) {
@@ -1043,16 +1056,20 @@ void MainWindow::updateLyricsDisplay(double position) {
     
     // Reset old highlighted lyric
     if (m_activeLyricIndex >= 0 && m_activeLyricIndex < m_lyricLabels.size()) {
-        m_lyricLabels.at(m_activeLyricIndex)->setStyleSheet("font-family: 'Inter', 'Noto Sans KR', 'NanumGothic', sans-serif; font-size: 16px; color: #9ca3af; padding: 10px 0; font-weight: 600;");
+        m_lyricLabels.at(m_activeLyricIndex)->setStyleSheet("font-family: 'Inter', 'Noto Sans KR', 'NanumGothic', sans-serif; font-size: 16px; color: #9ca3af; padding: 12px 0; font-weight: 600;");
     }
     
     m_activeLyricIndex = index;
     
-    // Highlight new active lyric (Spotify style: 22px bold prominent blue)
+    // Highlight new active lyric (Spotify style: prominent 24px bold)
     if (m_activeLyricIndex >= 0 && m_activeLyricIndex < m_lyricLabels.size()) {
         QLabel *activeLabel = m_lyricLabels.at(m_activeLyricIndex);
-        activeLabel->setStyleSheet("font-family: 'Inter', 'Noto Sans KR', 'NanumGothic', sans-serif; font-size: 42px; color: #3c7fb1; font-weight: 700; padding: 12px 0;");
+        activeLabel->setStyleSheet("font-family: 'Inter', 'Noto Sans KR', 'NanumGothic', sans-serif; font-size: 24px; color: #3c7fb1; font-weight: 700; padding: 16px 0;");
         
+        // Force layout update so activeLabel geometry is exact before animation calculation
+        m_lyricsContainer->layout()->activate();
+        m_lyricsContainer->adjustSize();
+
         // Spotify-style smooth scrolling animation (350ms OutCubic easing)
         QScrollBar *vBar = m_lyricsScroll->verticalScrollBar();
         int targetY = activeLabel->y() + (activeLabel->height() / 2) - (m_lyricsScroll->viewport()->height() / 2);
