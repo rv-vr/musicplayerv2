@@ -1019,14 +1019,14 @@ void MainWindow::loadSongLyrics(const QString &song_path) {
             QLabel *lbl = new QLabel(QString::fromUtf8(line.text), m_lyricsContainer);
             lbl->setAlignment(Qt::AlignCenter);
             lbl->setProperty("class", "lyric-line");
-            lbl->setStyleSheet("font-size: 16px; color: #9ca3af; padding: 10px 0; font-weight: 500;");
+            lbl->setStyleSheet("font-family: 'Inter', 'Noto Sans KR', 'NanumGothic', sans-serif; font-size: 16px; color: #9ca3af; padding: 10px 0; font-weight: 600;");
             m_lyricsContainer->layout()->addWidget(lbl);
             m_lyricLabels.append(lbl);
         }
     } else {
         QLabel *lbl = new QLabel("Instrumental / No Lyrics Found", m_lyricsContainer);
         lbl->setAlignment(Qt::AlignCenter);
-        lbl->setStyleSheet("font-size: 16px; color: #9ca3af; font-weight: 500; padding: 20px;");
+        lbl->setStyleSheet("font-family: 'Inter', 'Noto Sans KR', 'NanumGothic', sans-serif; font-size: 16px; color: #9ca3af; font-weight: 600; padding: 20px;");
         m_lyricsContainer->layout()->addWidget(lbl);
         m_lyricLabels.append(lbl);
     }
@@ -1040,7 +1040,7 @@ void MainWindow::updateLyricsDisplay(double position) {
     
     // Reset old highlighted lyric
     if (m_activeLyricIndex >= 0 && m_activeLyricIndex < m_lyricLabels.size()) {
-        m_lyricLabels.at(m_activeLyricIndex)->setStyleSheet("font-size: 15px; color: #9ca3af; padding: 10px 0; font-weight: 500;");
+        m_lyricLabels.at(m_activeLyricIndex)->setStyleSheet("font-family: 'Inter', 'Noto Sans KR', 'NanumGothic', sans-serif; font-size: 16px; color: #9ca3af; padding: 10px 0; font-weight: 600;");
     }
     
     m_activeLyricIndex = index;
@@ -1048,7 +1048,7 @@ void MainWindow::updateLyricsDisplay(double position) {
     // Highlight new active lyric (Spotify style: 22px bold prominent blue)
     if (m_activeLyricIndex >= 0 && m_activeLyricIndex < m_lyricLabels.size()) {
         QLabel *activeLabel = m_lyricLabels.at(m_activeLyricIndex);
-        activeLabel->setStyleSheet("font-size: 36px; color: #3c7fb1; font-weight: 800; padding: 12px 0;");
+        activeLabel->setStyleSheet("font-family: 'Inter', 'Noto Sans KR', 'NanumGothic', sans-serif; font-size: 22px; color: #3c7fb1; font-weight: 700; padding: 12px 0;");
         
         // Spotify-style smooth scrolling animation (350ms OutCubic easing)
         QScrollBar *vBar = m_lyricsScroll->verticalScrollBar();
