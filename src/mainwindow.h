@@ -65,6 +65,7 @@ signals:
     void clicked(Album *album);
 protected:
     void mousePressEvent(QMouseEvent *event) override;
+    void keyPressEvent(QKeyEvent *event) override;
 private:
     Album *m_album;
 };
