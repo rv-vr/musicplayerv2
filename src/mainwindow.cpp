@@ -97,13 +97,13 @@ AlbumCard::AlbumCard(Album *album, QWidget *parent)
     }
     if (!loaded) {
         QPixmap fallback(103, 103);
-        fallback.fill(QColor("#e5e7eb"));
+        fallback.fill(QColor("#27272a"));
         coverLbl->setPixmap(fallback);
     }
     layout->addWidget(coverLbl);
     
     QLabel *titleLbl = new QLabel(QString::fromStdString(album->name), this);
-    titleLbl->setStyleSheet("font-size: 11px; font-weight: 600; color: #1a1a1a;");
+    titleLbl->setStyleSheet("font-size: 11px; font-weight: 600; color: #e4e4e7;");
     titleLbl->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
     QFontMetrics fm(titleLbl->font());
     QString elidedTitle = fm.elidedText(titleLbl->text(), Qt::ElideRight, 103);
@@ -111,7 +111,7 @@ AlbumCard::AlbumCard(Album *album, QWidget *parent)
     layout->addWidget(titleLbl);
     
     QLabel *artistLbl = new QLabel(QString::fromStdString(album->artist), this);
-    artistLbl->setStyleSheet("font-size: 10px; color: #6b7280;");
+    artistLbl->setStyleSheet("font-size: 10px; color: #a1a1aa;");
     artistLbl->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
     QString elidedArtist = fm.elidedText(artistLbl->text(), Qt::ElideRight, 103);
     artistLbl->setText(elidedArtist);
@@ -313,7 +313,7 @@ void MainWindow::setupUI() {
     ctrlRow->setSpacing(8);
     ctrlRow->setAlignment(Qt::AlignCenter);
     
-    QColor whiteIcon(60, 127, 177);
+    QColor whiteIcon("#e4e4e7");
     
     auto mkTopBtn = [&](const QString &icon, bool chk) -> QPushButton* {
         QPushButton *b = new QPushButton(centerSection);
@@ -335,7 +335,7 @@ void MainWindow::setupUI() {
     
     m_playPauseBtn = new QPushButton(centerSection);
     m_playPauseBtn->setObjectName("topPlayBtn");
-    m_playPauseBtn->setIcon(recolorIcon("media-playback-start", QColor("#ffffff"), 24));
+    m_playPauseBtn->setIcon(recolorIcon("media-playback-start", QColor("#09090b"), 24));
     m_playPauseBtn->setFixedSize(38, 38);
     connect(m_playPauseBtn, &QPushButton::clicked, this, &MainWindow::onPlayPauseClicked);
     ctrlRow->addWidget(m_playPauseBtn);
@@ -361,7 +361,7 @@ void MainWindow::setupUI() {
     
     m_muteBtn = new QPushButton(rightSection);
     m_muteBtn->setProperty("class", "topBtn");
-    m_muteBtn->setIcon(recolorIcon("audio-volume-high", QColor("#6b7280"), 18));
+    m_muteBtn->setIcon(recolorIcon("audio-volume-high", QColor("#e4e4e7"), 18));
     m_muteBtn->setFixedSize(32, 32);
     connect(m_muteBtn, &QPushButton::clicked, this, &MainWindow::onMuteClicked);
     rightLayout->addWidget(m_muteBtn);
@@ -768,7 +768,7 @@ void MainWindow::playSong(Song *song) {
         BASS_ChannelSetAttribute(m_playStream, BASS_ATTRIB_VOL, m_isMuted ? 0.0 : m_config->volume);
         if (BASS_ChannelPlay(m_playStream, FALSE)) {
             m_isPlaying = true;
-            m_playPauseBtn->setIcon(recolorIcon("media-playback-pause", QColor("#ffffff"), 24));
+            m_playPauseBtn->setIcon(recolorIcon("media-playback-pause", QColor("#09090b"), 24));
             
             // Set metadata labels
             m_trackTitleLbl->setText(QString::fromStdString(song->title));
@@ -790,11 +790,11 @@ void MainWindow::onPlayPauseClicked() {
         if (m_isPlaying) {
             BASS_ChannelPause(m_playStream);
             m_isPlaying = false;
-            m_playPauseBtn->setIcon(recolorIcon("media-playback-start", QColor("#ffffff"), 24));
+            m_playPauseBtn->setIcon(recolorIcon("media-playback-start", QColor("#09090b"), 24));
         } else {
             if (BASS_ChannelPlay(m_playStream, FALSE)) {
                 m_isPlaying = true;
-                m_playPauseBtn->setIcon(recolorIcon("media-playback-pause", QColor("#ffffff"), 24));
+                m_playPauseBtn->setIcon(recolorIcon("media-playback-pause", QColor("#09090b"), 24));
             }
         }
     } else if (!m_queue.isEmpty()) {
@@ -838,12 +838,12 @@ void MainWindow::onRepeatToggled() {
 void MainWindow::onMuteClicked() {
     m_isMuted = !m_isMuted;
     if (m_isMuted) {
-        m_muteBtn->setIcon(recolorIcon("audio-volume-muted", QColor("#6b7280")));
+        m_muteBtn->setIcon(recolorIcon("audio-volume-muted", QColor("#e4e4e7")));
         if (m_playStream) {
             BASS_ChannelSetAttribute(m_playStream, BASS_ATTRIB_VOL, 0.0);
         }
     } else {
-        m_muteBtn->setIcon(recolorIcon("audio-volume-high", QColor("#6b7280")));
+        m_muteBtn->setIcon(recolorIcon("audio-volume-high", QColor("#e4e4e7")));
         if (m_playStream) {
             BASS_ChannelSetAttribute(m_playStream, BASS_ATTRIB_VOL, m_config->volume);
         }
@@ -898,7 +898,7 @@ void MainWindow::onPositionTimer() {
             BASS_StreamFree(m_playStream);
             m_playStream = 0;
             m_isPlaying = false;
-            m_playPauseBtn->setIcon(recolorIcon("media-playback-start", QColor("#ffffff"), 24));
+            m_playPauseBtn->setIcon(recolorIcon("media-playback-start", QColor("#09090b"), 24));
             m_timeLbl->setText("00:00");
             m_totalTimeLbl->setText("00:00");
             m_seekScale->blockSignals(true);
@@ -991,8 +991,8 @@ void MainWindow::refreshQueueList() {
         // Highlight active track
         if (i == m_currentQueueIndex) {
             for (int col = 0; col < 4; ++col) {
-                m_queueModel->item(i, col)->setBackground(QBrush(QColor("#3c7fb1")));
-                m_queueModel->item(i, col)->setForeground(QBrush(QColor("#ffffff")));
+                m_queueModel->item(i, col)->setBackground(QBrush(QColor("#38bdf8")));
+                m_queueModel->item(i, col)->setForeground(QBrush(QColor("#09090b")));
             }
         }
     }
@@ -1286,7 +1286,7 @@ void MainWindow::updateLyricsDisplay(double position) {
     
     if (m_activeLyricIndex >= 0 && m_activeLyricIndex < m_lyricLabels.size()) {
         QLabel *activeLabel = m_lyricLabels.at(m_activeLyricIndex);
-        activeLabel->setStyleSheet("font-family: 'Inter', 'Noto Sans KR', 'NanumGothic', sans-serif; font-size: 24px; color: #38bdf8; padding: 14px 0; font-weight: 700;");
+        activeLabel->setStyleSheet("font-family: 'Inter', 'Noto Sans KR', 'NanumGothic', sans-serif; font-size: 48px; color: #38bdf8; padding: 14px 0; font-weight: 700;");
         
         QScrollBar *vBar = m_lyricsScroll->verticalScrollBar();
         int viewportH = m_lyricsScroll->viewport()->height();
@@ -1536,15 +1536,15 @@ void MainWindow::setupHomeTab() {
     m_searchEdit->setPlaceholderText("🔍 Search songs, artists, or albums...");
     m_searchEdit->setStyleSheet(
         "QLineEdit {"
-        "    background-color: #ffffff;"
-        "    border: 1px solid #d1d5db;"
-        "    border-radius: 8px;"
+        "    background-color: rgba(18, 18, 21, 0.85);"
+        "    border: 1px solid rgba(255, 255, 255, 0.10);"
+        "    border-radius: 10px;"
         "    padding: 10px 14px;"
-        "    color: #1a1a1a;"
+        "    color: #e4e4e7;"
         "    font-size: 14px;"
         "}"
         "QLineEdit:focus {"
-        "    border: 1px solid #3c7fb1;"
+        "    border: 1px solid #38bdf8;"
         "}"
     );
     homeLayout->addWidget(m_searchEdit);
@@ -1556,7 +1556,7 @@ void MainWindow::setupHomeTab() {
     recentLayout->setSpacing(10);
     
     QLabel *recentHeader = new QLabel("Recently Added Albums", m_recentAlbumsWidget);
-    recentHeader->setStyleSheet("font-size: 16px; font-weight: 700; color: #3c7fb1;");
+    recentHeader->setStyleSheet("font-size: 16px; font-weight: 700; color: #38bdf8;");
     recentLayout->addWidget(recentHeader);
     
     QScrollArea *scroll = new QScrollArea(m_recentAlbumsWidget);
