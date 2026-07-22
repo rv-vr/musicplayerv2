@@ -300,8 +300,8 @@ void MainWindow::setupUI() {
     updateAmbientBackground(QString());
     
     QVBoxLayout *topBarLayout = new QVBoxLayout(m_topPlayerBar);
-    topBarLayout->setContentsMargins(16, 10, 16, 8);
-    topBarLayout->setSpacing(8);
+    topBarLayout->setContentsMargins(16, 6, 16, 4);
+    topBarLayout->setSpacing(4);
     
     // Top Row: [ Left: Cover + Title/Artist ]  [ Center: Playback Controls ]  [ Right: Volume ]
     QHBoxLayout *topRow = new QHBoxLayout();
@@ -313,20 +313,20 @@ void MainWindow::setupUI() {
     leftSection->setObjectName("topLeftSection");
     QHBoxLayout *leftLayout = new QHBoxLayout(leftSection);
     leftLayout->setContentsMargins(0, 0, 0, 0);
-    leftLayout->setSpacing(12);
+    leftLayout->setSpacing(10);
     
     m_albumCoverImg = new QLabel(leftSection);
     m_albumCoverImg->setObjectName("topAlbumCover");
-    m_albumCoverImg->setFixedSize(48, 48);
+    m_albumCoverImg->setFixedSize(36, 36);
     m_albumCoverImg->setAlignment(Qt::AlignCenter);
     
-    QPixmap fallback(48, 48);
+    QPixmap fallback(36, 36);
     fallback.fill(QColor("#e5e7eb"));
     m_albumCoverImg->setPixmap(fallback);
     leftLayout->addWidget(m_albumCoverImg);
     
     QVBoxLayout *infoStack = new QVBoxLayout();
-    infoStack->setSpacing(2);
+    infoStack->setSpacing(1);
     infoStack->setContentsMargins(0, 0, 0, 0);
     infoStack->setAlignment(Qt::AlignVCenter);
     
@@ -353,12 +353,15 @@ void MainWindow::setupUI() {
     
     QColor whiteIcon("#e4e4e7");
     
-    auto mkTopBtn = [&](const QString &icon, bool chk) -> QPushButton* {
+    auto mkTopBtn = [&](const QString &iconName, bool chk) -> QPushButton* {
         QPushButton *b = new QPushButton(centerSection);
         b->setProperty("class", "topBtn");
         b->setCheckable(chk);
-        b->setIcon(recolorIcon(icon, whiteIcon, 20));
-        b->setFixedSize(32, 32);
+        QIcon btnIcon;
+        btnIcon.addPixmap(recolorIcon(iconName, whiteIcon, 18).pixmap(18, 18), QIcon::Normal, QIcon::Off);
+        btnIcon.addPixmap(recolorIcon(iconName, QColor("#38bdf8"), 18).pixmap(18, 18), QIcon::Normal, QIcon::On);
+        b->setIcon(btnIcon);
+        b->setFixedSize(28, 28);
         return b;
     };
     
@@ -379,8 +382,8 @@ void MainWindow::setupUI() {
     m_playPauseBtn->setObjectName("topPlayBtn");
     m_playPauseBtn->setToolTip("Play / Pause (Space)");
     m_playPauseBtn->setAccessibleName("Play or Pause Track");
-    m_playPauseBtn->setIcon(recolorIcon("media-playback-start", QColor("#09090b"), 20));
-    m_playPauseBtn->setFixedSize(38, 38);
+    m_playPauseBtn->setIcon(recolorIcon("media-playback-start", QColor("#09090b"), 18));
+    m_playPauseBtn->setFixedSize(32, 32);
     connect(m_playPauseBtn, &QPushButton::clicked, this, &MainWindow::onPlayPauseClicked);
     ctrlRow->addWidget(m_playPauseBtn);
     
