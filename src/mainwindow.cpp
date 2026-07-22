@@ -242,6 +242,7 @@ void MainWindow::setupUI() {
     // -------------------------------------------------------------
     m_topPlayerBar = new QWidget(m_centralWidget);
     m_topPlayerBar->setObjectName("topPlayerBar");
+    m_topPlayerBar->installEventFilter(this);
     
     m_ambientBackgroundLbl = new QLabel(m_topPlayerBar);
     m_ambientBackgroundLbl->setScaledContents(true);
@@ -1644,10 +1645,26 @@ void MainWindow::refreshRecentAlbums() {
     }
 }
 
+void MainWindow::showEvent(QShowEvent *event) {
+    QMainWindow::showEvent(event);
+    if (m_ambientBackgroundLbl && m_topPlayerBar) {
+        m_ambientBackgroundLbl->setGeometry(m_topPlayerBar->rect());
+    }
+}
+
+bool MainWindow::eventFilter(QObject *watched, QEvent *event) {
+    if (watched == m_topPlayerBar && (event->type() == QEvent::Resize || event->type() == QEvent::Show)) {
+        if (m_ambientBackgroundLbl && m_topPlayerBar) {
+            m_ambientBackgroundLbl->setGeometry(m_topPlayerBar->rect());
+        }
+    }
+    return QMainWindow::eventFilter(watched, event);
+}
+
 void MainWindow::resizeEvent(QResizeEvent *event) {
     QMainWindow::resizeEvent(event);
     if (m_ambientBackgroundLbl && m_topPlayerBar) {
-        m_ambientBackgroundLbl->resize(m_topPlayerBar->size());
+        m_ambientBackgroundLbl->setGeometry(m_topPlayerBar->rect());
     }
     if (m_library && m_recentAlbumsWidget && m_recentAlbumsWidget->isVisible()) {
         static int last_num_rows = -1;
