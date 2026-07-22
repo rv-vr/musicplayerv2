@@ -7,6 +7,8 @@
 #include <QTimer>
 #include <QProcess>
 #include <QHBoxLayout>
+#include <QGraphicsOpacityEffect>
+#include <QPropertyAnimation>
 #include <QGridLayout>
 #include <QResizeEvent>
 #include <QFrame>
@@ -173,7 +175,10 @@ private:
     QWidget *m_lyricsContainer;
     QLabel *m_pinnedActiveLyricLabel;
     QWidget *m_topPlayerBar;
+    QLabel *m_prevAmbientBackgroundLbl;
     QLabel *m_ambientBackgroundLbl;
+    QGraphicsOpacityEffect *m_ambientOpacityEffect;
+    QPropertyAnimation *m_ambientFadeAnim;
     void updateAmbientBackground(const QString &coverPath);
 
     QLineEdit *m_importSrcEdit;
