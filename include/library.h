@@ -5,37 +5,25 @@
 #include <QList>
 #include <QHash>
 #include <QAtomicInt>
+#include <string>
 
 struct Song {
-    char *filepath;
-    char *title;
-    char *artist;
-    char *album;
-    double duration;
-    int track_no;
-    int disc_no;
-
-    Song() : filepath(nullptr), title(nullptr), artist(nullptr),
-             album(nullptr), duration(0.0), track_no(0), disc_no(0) {}
-    ~Song() {
-        free(filepath);
-        free(title);
-        free(artist);
-        free(album);
-    }
+    std::string filepath;
+    std::string title;
+    std::string artist;
+    std::string album;
+    double duration = 0.0;
+    int track_no = 0;
+    int disc_no = 0;
 };
 
 struct Album {
-    char *name;
-    char *artist;
+    std::string name;
+    std::string artist;
     QList<Song*> songs;
-    char *cover_path;
+    std::string cover_path;
 
-    Album() : name(nullptr), artist(nullptr), cover_path(nullptr) {}
     ~Album() {
-        free(name);
-        free(artist);
-        free(cover_path);
         qDeleteAll(songs);
     }
 };
@@ -44,23 +32,17 @@ struct MusicLibrary {
     QList<Album*> albums;
     QHash<QString, Album*> albumMap;
 
-    MusicLibrary() {}
-    ~MusicLibrary() { qDeleteAll(albums); }
+    ~MusicLibrary() {
+        qDeleteAll(albums);
+    }
 };
 
 struct PlayerConfig {
-    char *library_path;
-    char *import_dest_path;
-    double volume;
-    bool shuffle;
-    bool repeat_mode;
-
-    PlayerConfig() : library_path(nullptr), import_dest_path(nullptr),
-                     volume(0.8), shuffle(false), repeat_mode(true) {}
-    ~PlayerConfig() {
-        free(library_path);
-        free(import_dest_path);
-    }
+    std::string library_path;
+    std::string import_dest_path;
+    double volume = 0.8;
+    bool shuffle = false;
+    bool repeat_mode = true;
 };
 
 MusicLibrary *library_new();
