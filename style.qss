@@ -13,30 +13,31 @@ QLabel {
 #topPlayerBar {
     background-color: rgba(18, 18, 21, 0.95);
     border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+    max-height: 64px;
 }
 #topAlbumCover {
-    border-radius: 8px;
+    border-radius: 6px;
     background-color: #18181b;
     border: 1px solid rgba(255, 255, 255, 0.12);
 }
 #topTrackTitle {
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 700;
     color: #f4f4f5;
 }
 #topTrackArtist {
-    font-size: 12px;
+    font-size: 11px;
     color: #a1a1aa;
 }
 
 [class="topBtn"] {
     background-color: transparent;
     border: none;
-    border-radius: 16px;
-    min-width: 32px;
-    min-height: 32px;
-    max-width: 32px;
-    max-height: 32px;
+    border-radius: 14px;
+    min-width: 28px;
+    min-height: 28px;
+    max-width: 28px;
+    max-height: 28px;
 }
 [class="topBtn"]:hover {
     background-color: rgba(255, 255, 255, 0.10);
@@ -48,18 +49,18 @@ QLabel {
     background-color: rgba(255, 255, 255, 0.20);
 }
 [class="topBtn"]:checked {
-    background-color: rgba(56, 189, 248, 0.15);
-    border: 1px solid rgba(56, 189, 248, 0.40);
+    background-color: transparent;
+    border: none;
 }
 
 #topPlayBtn {
     background-color: #38bdf8;
     border: none;
-    border-radius: 19px;
-    min-width: 38px;
-    min-height: 38px;
-    max-width: 38px;
-    max-height: 38px;
+    border-radius: 16px;
+    min-width: 32px;
+    min-height: 32px;
+    max-width: 32px;
+    max-height: 32px;
 }
 #topPlayBtn:hover {
     background-color: #7dd3fc;
@@ -120,25 +121,26 @@ QLabel {
 }
 
 #topTime, #topTotalTime {
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 500;
     color: #a1a1aa;
 }
 
 #mainTabs {
-    background-color: transparent;
+    background-color: #121215;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
 }
 QTabWidget::pane {
     border: none;
-    background-color: transparent;
+    background-color: #09090b;
 }
 QTabBar {
-    background-color: #121215;
-    padding: 0 16px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+    background-color: transparent;
+    padding: 0 12px;
+    border: none;
 }
 QTabBar::tab {
-    padding: 10px 18px;
+    padding: 8px 16px;
     background: transparent;
     color: #a1a1aa;
     font-weight: 600;
