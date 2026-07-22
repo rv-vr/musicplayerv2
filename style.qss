@@ -3,7 +3,7 @@ QMainWindow {
 }
 * {
     color: #1a1a1a;
-    font-family: 'Inter', 'Outfit', 'Cantarell', 'Helvetica Neue', sans-serif;
+    font-family: 'Inter', 'Outfit', 'Noto Sans KR', 'NanumGothic', 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
 }
 QLabel {
     color: #1a1a1a;
