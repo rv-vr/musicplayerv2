@@ -701,11 +701,11 @@ void MainWindow::populateArtistTrackList(Album *album) {
         
         QString text = QString("  %1   %2   %3").arg(trackNo, -4).arg(QString::fromStdString(song->title), -50).arg(dur);
         QListWidgetItem *item = new QListWidgetItem(text, trackList);
-        item->setData(Qt::UserRole, QVariant::fromValue((void*)song));
+        item->setData(Qt::UserRole, QVariant::fromValue(song));
     }
     
     connect(trackList, &QListWidget::itemDoubleClicked, this, [this](QListWidgetItem *item) {
-        Song *song = (Song *)item->data(Qt::UserRole).value<void*>();
+        Song *song = item->data(Qt::UserRole).value<Song*>();
         if (song) {
             Album *album = library_find_album(m_library.get(), song->artist.c_str(), song->album.c_str());
             if (album) {
@@ -869,8 +869,8 @@ void MainWindow::onSeekChanged(int value) {
 
 void MainWindow::onPositionTimer() {
     if (m_scanIsRunning) {
-        int total = m_scanTotalCount.loadRelaxed();
-        int scanned = m_scanScannedCount.loadRelaxed();
+        int total = m_scanTotalCount.load(std::memory_order_relaxed);
+        int scanned = m_scanScannedCount.load(std::memory_order_relaxed);
         if (total == 0) {
             m_statusLabel->setText("Calculating library files...");
             m_statusProgress->setRange(0, 0);
@@ -983,7 +983,7 @@ void MainWindow::refreshQueueList() {
             << new QStandardItem(durStr);
             
         QStandardItem *ptrItem = new QStandardItem();
-        ptrItem->setData(QVariant::fromValue((void*)song));
+        ptrItem->setData(QVariant::fromValue(song));
         row << ptrItem;
         
         m_queueModel->appendRow(row);
@@ -999,6 +999,7 @@ void MainWindow::refreshQueueList() {
 }
 
 void MainWindow::onQueueActivated(const QModelIndex &index) {
+    if (!index.isValid()) return;
     int row = index.row();
     if (row >= 0 && row < m_queue.size()) {
         m_currentQueueIndex = row;
@@ -1348,8 +1349,11 @@ void MainWindow::onScanProgress(int scanned, int total) {
 }
 
 void MainWindow::onScanFinished(MusicLibrary *temp_lib) {
-    m_scanThread->quit();
-    m_scanThread->wait();
+    if (m_scanThread) {
+        m_scanThread->quit();
+        m_scanThread->wait();
+        m_scanThread = nullptr;
+    }
     
     if (temp_lib) {
         library_free(temp_lib);
@@ -1491,7 +1495,7 @@ void MainWindow::onImportStart() {
     connect(worker, &ImporterWorker::finished, this, [this, worker]() {
         m_importThread->quit();
         m_importThread->wait();
-        worker->deleteLater();
+        delete worker;
         m_importThread->deleteLater();
         m_importThread = nullptr;
 
@@ -1694,7 +1698,6 @@ void MainWindow::onSearchTextChanged(const QString &text) {
     if (text.trimmed().isEmpty()) {
         m_searchResultsTreeView->hide();
         m_recentAlbumsWidget->show();
-        m_searchModel->removeRows(0, m_searchModel->rowCount());
         return;
     }
     
@@ -1704,17 +1707,21 @@ void MainWindow::onSearchTextChanged(const QString &text) {
     
     if (!m_library) return;
     
+    std::string needle = text.toLower().toStdString();
     int result_idx = 1;
-    for (Album *album : m_library->albums) {
+    
+    for (const Album *album : std::as_const(m_library->albums)) {
         for (Song *song : album->songs) {
+            std::string tLower = song->title;
+            std::string aLower = song->artist;
+            std::string alLower = song->album;
+            std::transform(tLower.begin(), tLower.end(), tLower.begin(), ::tolower);
+            std::transform(aLower.begin(), aLower.end(), aLower.begin(), ::tolower);
+            std::transform(alLower.begin(), alLower.end(), alLower.begin(), ::tolower);
             
-            QString title = QString::fromStdString(song->title);
-            QString artist = QString::fromStdString(song->artist);
-            QString albumName = QString::fromStdString(song->album);
-            
-            if (title.contains(text, Qt::CaseInsensitive) ||
-                artist.contains(text, Qt::CaseInsensitive) ||
-                albumName.contains(text, Qt::CaseInsensitive)) {
+            if (tLower.find(needle) != std::string::npos ||
+                aLower.find(needle) != std::string::npos ||
+                alLower.find(needle) != std::string::npos) {
                 
                 int min = (int)song->duration / 60;
                 int sec = (int)song->duration % 60;
@@ -1722,13 +1729,13 @@ void MainWindow::onSearchTextChanged(const QString &text) {
                 
                 QList<QStandardItem*> row;
                 row << new QStandardItem(QString::number(result_idx++))
-                    << new QStandardItem(title)
-                    << new QStandardItem(artist)
-                    << new QStandardItem(albumName)
+                    << new QStandardItem(QString::fromStdString(song->title))
+                    << new QStandardItem(QString::fromStdString(song->artist))
+                    << new QStandardItem(QString::fromStdString(song->album))
                     << new QStandardItem(durStr);
                     
                 QStandardItem *ptrItem = new QStandardItem();
-                ptrItem->setData(QVariant::fromValue((void*)song));
+                ptrItem->setData(QVariant::fromValue(song));
                 row << ptrItem;
                 
                 m_searchModel->appendRow(row);
@@ -1738,11 +1745,12 @@ void MainWindow::onSearchTextChanged(const QString &text) {
 }
 
 void MainWindow::onSearchResultActivated(const QModelIndex &index) {
+    if (!index.isValid()) return;
     int row = index.row();
     QStandardItem *ptrItem = m_searchModel->item(row, 5);
     if (!ptrItem) return;
     
-    Song *song = (Song *)ptrItem->data().value<void*>();
+    Song *song = ptrItem->data().value<Song*>();
     if (!song) return;
     
     Album *album = library_find_album(m_library.get(), song->artist.c_str(), song->album.c_str());
