@@ -17,6 +17,8 @@
 #include <QListWidget>
 #include <QFrame>
 #include <QPainter>
+#include <QCryptographicHash>
+#include <QDir>
 #include <QPropertyAnimation>
 #include <QEasingCurve>
 
@@ -230,6 +232,12 @@ MainWindow::~MainWindow() {
 void MainWindow::setupUI() {
     m_centralWidget = new QWidget(this);
     setCentralWidget(m_centralWidget);
+    
+    m_ambientBackgroundLbl = new QLabel(this);
+    m_ambientBackgroundLbl->setScaledContents(true);
+    m_ambientBackgroundLbl->lower();
+    m_ambientBackgroundLbl->resize(this->size());
+    updateAmbientBackground(QString());
     
     QVBoxLayout *mainLayout = new QVBoxLayout(m_centralWidget);
     mainLayout->setContentsMargins(0, 0, 0, 0);
@@ -1009,22 +1017,161 @@ void MainWindow::onClearQueueClicked() {
 // Cover Art & Lyrics Resolvers
 // -------------------------------------------------------------
 
+static QList<QColor> extractProminentColors(const QImage &img) {
+    QList<QColor> colors;
+    if (img.isNull()) {
+        colors.append(QColor("#38bdf8"));
+        colors.append(QColor("#818cf8"));
+        return colors;
+    }
+
+    QImage small = img.scaled(32, 32, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+    QMap<quint32, int> histogram;
+    for (int y = 0; y < small.height(); ++y) {
+        for (int x = 0; x < small.width(); ++x) {
+            QColor c = small.pixelColor(x, y);
+            int r = (c.red() >> 4) << 4;
+            int g = (c.green() >> 4) << 4;
+            int b = (c.blue() >> 4) << 4;
+            quint32 key = (r << 16) | (g << 8) | b;
+            histogram[key]++;
+        }
+    }
+
+    QVector<QPair<float, QColor>> candidates;
+    for (auto it = histogram.constBegin(); it != histogram.constEnd(); ++it) {
+        quint32 k = it.key();
+        QColor col((k >> 16) & 0xFF, (k >> 8) & 0xFF, k & 0xFF);
+        float h, s, v;
+        col.getHsvF(&h, &s, &v);
+        if (v < 0.15f || (s < 0.15f && (v > 0.85f || v < 0.25f))) continue;
+        
+        float score = (float)it.value() * (0.5f + s * 1.5f);
+        candidates.append({score, col});
+    }
+
+    std::sort(candidates.begin(), candidates.end(), [](const auto &a, const auto &b) {
+        return a.first > b.first;
+    });
+
+    for (const auto &cand : candidates) {
+        bool distinct = true;
+        for (const QColor &existing : colors) {
+            int dr = abs(cand.second.red() - existing.red());
+            int dg = abs(cand.second.green() - existing.green());
+            int db = abs(cand.second.blue() - existing.blue());
+            if (dr + dg + db < 100) {
+                distinct = false;
+                break;
+            }
+        }
+        if (distinct) {
+            colors.append(cand.second);
+            if (colors.size() >= 3) break;
+        }
+    }
+
+    if (colors.isEmpty()) colors.append(QColor("#38bdf8"));
+    if (colors.size() == 1) colors.append(colors.first().lighter(130));
+
+    return colors;
+}
+
+void MainWindow::updateAmbientBackground(const QString &coverPath) {
+    if (!m_ambientBackgroundLbl) return;
+
+    QString cacheDir = QDir::homePath() + "/.cache/musicplayerv2/blurs";
+    QDir().mkpath(cacheDir);
+
+    QString cacheKey;
+    if (coverPath.isEmpty() || !QFile::exists(coverPath)) {
+        cacheKey = cacheDir + "/default_ambient_v2.jpg";
+    } else {
+        QByteArray hash = QCryptographicHash::hash(coverPath.toUtf8(), QCryptographicHash::Md5).toHex();
+        cacheKey = cacheDir + "/" + QString(hash) + "_v2.jpg";
+    }
+
+    QPixmap blurPixmap;
+    if (QFile::exists(cacheKey)) {
+        blurPixmap.load(cacheKey);
+    } else {
+        QImage srcImg;
+        if (!coverPath.isEmpty() && QFile::exists(coverPath)) {
+            srcImg.load(coverPath);
+        }
+        
+        QList<QColor> prominent = extractProminentColors(srcImg);
+        QColor colorA = prominent.size() > 0 ? prominent.at(0) : QColor("#38bdf8");
+        QColor colorB = prominent.size() > 1 ? prominent.at(1) : colorA.lighter(130);
+        QColor colorC = prominent.size() > 2 ? prominent.at(2) : colorB.darker(130);
+
+        QImage meshCanvas(400, 400, QImage::Format_RGB32);
+        meshCanvas.fill(QColor("#09090b"));
+
+        QPainter p(&meshCanvas);
+        p.setRenderHint(QPainter::Antialiasing);
+
+        // Primary Color Radial Orb
+        QRadialGradient radialA(120, 120, 260);
+        QColor colA_soft = colorA;
+        colA_soft.setAlpha(180);
+        radialA.setColorAt(0.0, colA_soft);
+        radialA.setColorAt(1.0, QColor(9, 9, 11, 0));
+        p.fillRect(meshCanvas.rect(), radialA);
+
+        // Secondary Color Radial Orb
+        QRadialGradient radialB(280, 280, 260);
+        QColor colB_soft = colorB;
+        colB_soft.setAlpha(160);
+        radialB.setColorAt(0.0, colB_soft);
+        radialB.setColorAt(1.0, QColor(9, 9, 11, 0));
+        p.fillRect(meshCanvas.rect(), radialB);
+
+        // Tertiary Color Radial Orb
+        QRadialGradient radialC(320, 100, 200);
+        QColor colC_soft = colorC;
+        colC_soft.setAlpha(140);
+        radialC.setColorAt(0.0, colC_soft);
+        radialC.setColorAt(1.0, QColor(9, 9, 11, 0));
+        p.fillRect(meshCanvas.rect(), radialC);
+
+        // Dark Vignette Overlay
+        QLinearGradient darkOverlay(0, 0, 0, 400);
+        darkOverlay.setColorAt(0.0, QColor(9, 9, 11, 140));
+        darkOverlay.setColorAt(1.0, QColor(9, 9, 11, 230));
+        p.fillRect(meshCanvas.rect(), darkOverlay);
+        p.end();
+
+        QImage blurred = meshCanvas.scaled(80, 80, Qt::IgnoreAspectRatio, Qt::SmoothTransformation)
+                                  .scaled(400, 400, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+
+        blurred.save(cacheKey, "JPG", 85);
+        blurPixmap = QPixmap::fromImage(blurred);
+    }
+
+    m_ambientBackgroundLbl->setPixmap(blurPixmap);
+}
+
 void MainWindow::updateAlbumCover(const QString &song_path) {
     if (song_path.isEmpty()) {
         QPixmap fallback(48, 48);
-        fallback.fill(QColor("#e5e7eb"));
+        fallback.fill(QColor("#27272a"));
         m_albumCoverImg->setPixmap(fallback);
+        updateAmbientBackground(QString());
         return;
     }
 
     char *cover_path = resolve_cover_art(song_path.toUtf8().constData());
     if (cover_path && QFile::exists(cover_path)) {
-        QPixmap pm(QString::fromUtf8(cover_path));
+        QString coverStr = QString::fromUtf8(cover_path);
+        QPixmap pm(coverStr);
         m_albumCoverImg->setPixmap(pm.scaled(48, 48, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+        updateAmbientBackground(coverStr);
     } else {
         QPixmap fallback(48, 48);
-        fallback.fill(QColor("#e5e7eb"));
+        fallback.fill(QColor("#27272a"));
         m_albumCoverImg->setPixmap(fallback);
+        updateAmbientBackground(QString());
     }
 
     free(cover_path);
@@ -1503,6 +1650,9 @@ void MainWindow::refreshRecentAlbums() {
 
 void MainWindow::resizeEvent(QResizeEvent *event) {
     QMainWindow::resizeEvent(event);
+    if (m_ambientBackgroundLbl) {
+        m_ambientBackgroundLbl->resize(event->size());
+    }
     if (m_library && m_recentAlbumsWidget && m_recentAlbumsWidget->isVisible()) {
         static int last_num_rows = -1;
         int h = this->height();
