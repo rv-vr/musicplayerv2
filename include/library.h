@@ -47,7 +47,8 @@ struct PlayerConfig {
 
 MusicLibrary *library_new();
 void library_free(MusicLibrary *lib);
-void library_scan(MusicLibrary *lib, const QString &rootPath, QAtomicInt *scannedCounter);
+void library_load_cached(MusicLibrary *lib);
+void library_scan(MusicLibrary *lib, const QString &rootPath, QAtomicInt *scannedCounter, QAtomicInt *totalCounter = nullptr);
 Album *library_find_album(MusicLibrary *lib, const char *artist, const char *album_name);
 QList<Album*> library_get_recent_albums(MusicLibrary *lib, int limit);
 
