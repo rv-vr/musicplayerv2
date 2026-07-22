@@ -19,6 +19,7 @@
 #include <QPainter>
 #include <QCryptographicHash>
 #include <QDir>
+#include <QGraphicsOpacityEffect>
 #include <QPropertyAnimation>
 #include <QEasingCurve>
 
@@ -246,7 +247,18 @@ void MainWindow::setupUI() {
     
     m_ambientBackgroundLbl = new QLabel(m_topPlayerBar);
     m_ambientBackgroundLbl->setScaledContents(true);
-    m_ambientBackgroundLbl->lower();
+
+    m_prevAmbientBackgroundLbl = new QLabel(m_topPlayerBar);
+    m_prevAmbientBackgroundLbl->setScaledContents(true);
+    m_prevAmbientBackgroundLbl->stackUnder(m_ambientBackgroundLbl);
+
+    m_ambientOpacityEffect = new QGraphicsOpacityEffect(m_ambientBackgroundLbl);
+    m_ambientBackgroundLbl->setGraphicsEffect(m_ambientOpacityEffect);
+
+    m_ambientFadeAnim = new QPropertyAnimation(m_ambientOpacityEffect, "opacity", this);
+    m_ambientFadeAnim->setDuration(500);
+    m_ambientFadeAnim->setEasingCurve(QEasingCurve::InOutCubic);
+
     updateAmbientBackground(QString());
     
     QVBoxLayout *topBarLayout = new QVBoxLayout(m_topPlayerBar);
@@ -1143,9 +1155,26 @@ void MainWindow::updateAmbientBackground(const QString &coverPath) {
         blurPixmap = QPixmap::fromImage(meshCanvas);
     }
 
+    if (m_prevAmbientBackgroundLbl && m_ambientBackgroundLbl && !m_ambientBackgroundLbl->pixmap().isNull()) {
+        m_prevAmbientBackgroundLbl->setPixmap(m_ambientBackgroundLbl->pixmap());
+    }
+
     m_ambientBackgroundLbl->setPixmap(blurPixmap);
+
     if (m_topPlayerBar->size().width() > 0) {
-        m_ambientBackgroundLbl->resize(m_topPlayerBar->size());
+        m_prevAmbientBackgroundLbl->setGeometry(m_topPlayerBar->rect());
+        m_ambientBackgroundLbl->setGeometry(m_topPlayerBar->rect());
+    }
+    m_prevAmbientBackgroundLbl->stackUnder(m_ambientBackgroundLbl);
+
+    if (m_ambientFadeAnim && m_ambientOpacityEffect) {
+        m_ambientFadeAnim->stop();
+        m_ambientOpacityEffect->setOpacity(0.0);
+        m_ambientFadeAnim->setStartValue(0.0);
+        m_ambientFadeAnim->setEndValue(1.0);
+        m_ambientFadeAnim->setDuration(500);
+        m_ambientFadeAnim->setEasingCurve(QEasingCurve::InOutCubic);
+        m_ambientFadeAnim->start();
     }
 }
 
@@ -1647,24 +1676,25 @@ void MainWindow::refreshRecentAlbums() {
 
 void MainWindow::showEvent(QShowEvent *event) {
     QMainWindow::showEvent(event);
-    if (m_ambientBackgroundLbl && m_topPlayerBar) {
-        m_ambientBackgroundLbl->setGeometry(m_topPlayerBar->rect());
+    if (m_topPlayerBar) {
+        if (m_prevAmbientBackgroundLbl) m_prevAmbientBackgroundLbl->setGeometry(m_topPlayerBar->rect());
+        if (m_ambientBackgroundLbl) m_ambientBackgroundLbl->setGeometry(m_topPlayerBar->rect());
     }
 }
 
 bool MainWindow::eventFilter(QObject *watched, QEvent *event) {
     if (watched == m_topPlayerBar && (event->type() == QEvent::Resize || event->type() == QEvent::Show)) {
-        if (m_ambientBackgroundLbl && m_topPlayerBar) {
-            m_ambientBackgroundLbl->setGeometry(m_topPlayerBar->rect());
-        }
+        if (m_prevAmbientBackgroundLbl) m_prevAmbientBackgroundLbl->setGeometry(m_topPlayerBar->rect());
+        if (m_ambientBackgroundLbl) m_ambientBackgroundLbl->setGeometry(m_topPlayerBar->rect());
     }
     return QMainWindow::eventFilter(watched, event);
 }
 
 void MainWindow::resizeEvent(QResizeEvent *event) {
     QMainWindow::resizeEvent(event);
-    if (m_ambientBackgroundLbl && m_topPlayerBar) {
-        m_ambientBackgroundLbl->setGeometry(m_topPlayerBar->rect());
+    if (m_topPlayerBar) {
+        if (m_prevAmbientBackgroundLbl) m_prevAmbientBackgroundLbl->setGeometry(m_topPlayerBar->rect());
+        if (m_ambientBackgroundLbl) m_ambientBackgroundLbl->setGeometry(m_topPlayerBar->rect());
     }
     if (m_library && m_recentAlbumsWidget && m_recentAlbumsWidget->isVisible()) {
         static int last_num_rows = -1;
