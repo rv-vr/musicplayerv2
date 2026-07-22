@@ -137,18 +137,17 @@ static void cleanOrphanedCache(sqlite3 *db, const QHash<QString, bool> &visited,
 }
 
 static bool albumLessThan(const Album *a, const Album *b) {
-    int cmp = QString::localeAwareCompare(
-        QString::fromStdString(a->name), QString::fromStdString(b->name));
-    if (cmp != 0) return cmp < 0;
-    return QString::localeAwareCompare(
-        QString::fromStdString(a->artist), QString::fromStdString(b->artist)) < 0;
+    if (!a || !b) return a < b;
+    if (a->name != b->name) return a->name < b->name;
+    return a->artist < b->artist;
 }
 
 static bool songLessThan(const Song *a, const Song *b) {
+    if (!a || !b) return a < b;
     if (a->disc_no != b->disc_no) return a->disc_no < b->disc_no;
     if (a->track_no != b->track_no) return a->track_no < b->track_no;
-    return QString::localeAwareCompare(
-        QString::fromStdString(a->title), QString::fromStdString(b->title)) < 0;
+    if (a->title != b->title) return a->title < b->title;
+    return a->filepath < b->filepath;
 }
 
 static double queryDuration(const char *filepath) {
@@ -207,14 +206,19 @@ static void scanFile(const ScanTask &task) {
                 qint64 cachedMtime = sqlite3_column_int64(stmt, 4);
                 double cachedDur = sqlite3_column_double(stmt, 3);
                 if (cachedMtime == diskMtime && cachedDur > 0.0) {
-                    title = strdup((const char *)sqlite3_column_text(stmt, 0));
-                    artist_name = strdup((const char *)sqlite3_column_text(stmt, 1));
-                    album_name = strdup((const char *)sqlite3_column_text(stmt, 2));
+                    const char *tStr = (const char *)sqlite3_column_text(stmt, 0);
+                    const char *aStr = (const char *)sqlite3_column_text(stmt, 1);
+                    const char *alStr = (const char *)sqlite3_column_text(stmt, 2);
+                    const char *caStr = (const char *)sqlite3_column_text(stmt, 7);
+
+                    if (tStr) title = strdup(tStr);
+                    if (aStr) artist_name = strdup(aStr);
+                    if (alStr) album_name = strdup(alStr);
+                    if (caStr) album_artist = strdup(caStr);
+
                     duration = cachedDur;
                     track_no = sqlite3_column_int(stmt, 5);
                     disc_no = sqlite3_column_int(stmt, 6);
-                    const char *ca = (const char *)sqlite3_column_text(stmt, 7);
-                    if (ca) album_artist = strdup(ca);
                     cachedFound = true;
                 }
             }
@@ -335,45 +339,50 @@ static void scanFile(const ScanTask &task) {
 
         ctx->visited.insert(fullPath, true);
 
-        // Build album key
-        const char *effectiveArtist = (album_artist && strlen(album_artist) > 0) ? album_artist : artist_name;
-        QString key = QString::fromUtf8(effectiveArtist) + " - " + QString::fromUtf8(album_name);
+        // Build album key & insert into memory if lib provided
+        if (ctx->lib) {
+            const char *effectiveArtist = (album_artist && strlen(album_artist) > 0) ? album_artist : (artist_name ? artist_name : "Unknown Artist");
+            const char *effectiveAlbum = (album_name && strlen(album_name) > 0) ? album_name : "Unknown Album";
+            QString key = (QString::fromUtf8(effectiveArtist) + " - " + QString::fromUtf8(effectiveAlbum)).toLower();
 
-        Album *album = ctx->lib->albumMap.value(key, nullptr);
-        if (!album) {
-            album = new Album;
-            album->name = album_name ? album_name : "";
-            album->artist = effectiveArtist ? effectiveArtist : "";
-            album->cover_path.clear();
+            Album *album = ctx->lib->albumMap.value(key, nullptr);
+            if (!album) {
+                album = new Album;
+                album->name = effectiveAlbum;
+                album->artist = effectiveArtist;
+                album->cover_path.clear();
 
-            // Search for cover art in parent dir
-            QString parentDir = fi.absolutePath();
-            const char *coverNames[] = {
-                "cover.jpg", "cover.png", "folder.jpg", "folder.png",
-                "Cover.jpg", "Cover.png", "Folder.jpg", "Folder.png"
-            };
-            for (int i = 0; i < 8; i++) {
-                QString covTest = parentDir + "/" + coverNames[i];
-                if (QFile::exists(covTest)) {
-                    album->cover_path = covTest.toUtf8().constData();
-                    break;
+                // Search for cover art in parent dir
+                QString parentDir = fi.absolutePath();
+                const char *coverNames[] = {
+                    "cover.jpg", "cover.png", "folder.jpg", "folder.png",
+                    "Cover.jpg", "Cover.png", "Folder.jpg", "Folder.png"
+                };
+                for (int i = 0; i < 8; i++) {
+                    QString covTest = parentDir + "/" + coverNames[i];
+                    if (QFile::exists(covTest)) {
+                        album->cover_path = covTest.toUtf8().constData();
+                        break;
+                    }
+                }
+
+                ctx->lib->albumMap.insert(key, album);
+                if (!ctx->lib->albums.contains(album)) {
+                    ctx->lib->albums.append(album);
                 }
             }
 
-            ctx->lib->albumMap.insert(key, album);
-            ctx->lib->albums.append(album);
+            Song *song = new Song;
+            song->filepath = fullPathC;
+            if (title) song->title = title;
+            if (artist_name) song->artist = artist_name;
+            if (album_name) song->album = album_name;
+            song->duration = duration;
+            song->track_no = track_no;
+            song->disc_no = disc_no;
+
+            album->songs.append(song);
         }
-
-        Song *song = new Song;
-        song->filepath = fullPathC;
-        if (title) song->title = title;
-        if (artist_name) song->artist = artist_name;
-        if (album_name) song->album = album_name;
-        song->duration = duration;
-        song->track_no = track_no;
-        song->disc_no = disc_no;
-
-        album->songs.append(song);
 
         if (ctx->scannedCounter) {
             (*ctx->scannedCounter)++;
@@ -415,7 +424,7 @@ void library_load_cached(MusicLibrary *lib) {
 
             const char *effArtist = (aar && strlen(aar) > 0) ? aar : (ar ? ar : "Unknown Artist");
             const char *effAlbum = (al && strlen(al) > 0) ? al : "Unknown Album";
-            QString key = QString::fromUtf8(effArtist) + " - " + QString::fromUtf8(effAlbum);
+            QString key = (QString::fromUtf8(effArtist) + " - " + QString::fromUtf8(effAlbum)).toLower();
 
             Album *album = lib->albumMap.value(key, nullptr);
             if (!album) {
@@ -438,7 +447,9 @@ void library_load_cached(MusicLibrary *lib) {
                 }
 
                 lib->albumMap.insert(key, album);
-                lib->albums.append(album);
+                if (!lib->albums.contains(album)) {
+                    lib->albums.append(album);
+                }
             }
 
             Song *song = new Song;
@@ -463,9 +474,11 @@ void library_load_cached(MusicLibrary *lib) {
 }
 
 void library_scan(MusicLibrary *lib, const QString &rootPath, QAtomicInt *scannedCounter, QAtomicInt *totalCounter) {
-    qDeleteAll(lib->albums);
-    lib->albums.clear();
-    lib->albumMap.clear();
+    if (lib) {
+        qDeleteAll(lib->albums);
+        lib->albums.clear();
+        lib->albumMap.clear();
+    }
 
     if (rootPath.isEmpty() || !QDir(rootPath).exists()) return;
 
@@ -512,17 +525,19 @@ void library_scan(MusicLibrary *lib, const QString &rootPath, QAtomicInt *scanne
         sqlite3_close(db);
     }
 
-    // Sort
-    std::sort(lib->albums.begin(), lib->albums.end(), albumLessThan);
-    for (Album *album : lib->albums) {
-        std::sort(album->songs.begin(), album->songs.end(), songLessThan);
+    // Sort if lib provided
+    if (lib) {
+        std::sort(lib->albums.begin(), lib->albums.end(), albumLessThan);
+        for (Album *album : lib->albums) {
+            std::sort(album->songs.begin(), album->songs.end(), songLessThan);
+        }
     }
 }
 
 Album *library_find_album(MusicLibrary *lib, const char *artist, const char *album_name) {
     if (!lib || !album_name) return nullptr;
-    QString key = QString::fromUtf8(artist ? artist : "Unknown Artist")
-                  + " - " + QString::fromUtf8(album_name);
+    QString key = (QString::fromUtf8(artist ? artist : "Unknown Artist")
+                  + " - " + QString::fromUtf8(album_name)).toLower();
     return lib->albumMap.value(key, nullptr);
 }
 
@@ -650,22 +665,6 @@ char *resolve_cover_art(const char *song_path) {
     QString coverPath = findCoverInDir(dir);
     if (!coverPath.isEmpty()) return strdup(coverPath.toUtf8().constData());
 
-    // Extract embedded via python
-    QString outPath = "/tmp/musicplayerv2_cover.png";
-    QFile::remove(outPath);
-
-    QString appDir = QCoreApplication::applicationDirPath();
-    QString scriptPath = appDir + "/extract_metadata.py";
-    if (!QFile::exists(scriptPath)) {
-        scriptPath = appDir + "/../extract_metadata.py";
-    }
-
-    QProcess proc;
-    proc.start("python3", QStringList() << scriptPath << sp << "--cover" << outPath);
-    if (proc.waitForFinished(30000) && proc.exitCode() == 0 && QFile::exists(outPath)) {
-        return strdup(outPath.toUtf8().constData());
-    }
-
     return nullptr;
 }
 
@@ -678,22 +677,6 @@ char *resolve_lyrics(const char *song_path) {
     if (dot >= 0) {
         lrcPath = lrcPath.left(dot) + ".lrc";
         if (QFile::exists(lrcPath)) return strdup(lrcPath.toUtf8().constData());
-    }
-
-    // Extract embedded via python
-    QString outPath = "/tmp/musicplayerv2_lyrics.lrc";
-    QFile::remove(outPath);
-
-    QString appDir = QCoreApplication::applicationDirPath();
-    QString scriptPath = appDir + "/extract_metadata.py";
-    if (!QFile::exists(scriptPath)) {
-        scriptPath = appDir + "/../extract_metadata.py";
-    }
-
-    QProcess proc;
-    proc.start("python3", QStringList() << scriptPath << QString::fromUtf8(song_path) << "--lyrics" << outPath);
-    if (proc.waitForFinished(30000) && proc.exitCode() == 0 && QFile::exists(outPath)) {
-        return strdup(outPath.toUtf8().constData());
     }
 
     return nullptr;
