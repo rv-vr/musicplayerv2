@@ -1096,8 +1096,8 @@ void MainWindow::updateLyricsDisplay(double position) {
         activeLabel->setStyleSheet("font-family: 'Inter', 'Noto Sans KR', 'NanumGothic', sans-serif; font-size: 24px; color: #3c7fb1; padding: 16px 0; font-weight: 700; border: 1px solid;");
         
         QScrollBar *vBar = m_lyricsScroll->verticalScrollBar();
-        int targetY = (m_activeLyricIndex < m_lyricLineTargets.size()) ? m_lyricLineTargets.at(m_activeLyricIndex)
-                                                                      : activeLabel->y() + (activeLabel->height() / 2) - (m_lyricsScroll->viewport()->height() / 2);
+        int viewportH = m_lyricsScroll->viewport()->height();
+        int targetY = activeLabel->y() + (activeLabel->height() / 2) - (viewportH / 2);
         targetY = qBound(vBar->minimum(), targetY, vBar->maximum());
 
         QPropertyAnimation *anim = new QPropertyAnimation(vBar, "value", m_lyricsScroll);
