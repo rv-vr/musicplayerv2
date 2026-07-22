@@ -169,6 +169,7 @@ private:
 
     QScrollArea *m_lyricsScroll;
     QWidget *m_lyricsContainer;
+    QLabel *m_pinnedActiveLyricLabel;
 
     QLineEdit *m_importSrcEdit;
     QPushButton *m_importSrcBtn;
