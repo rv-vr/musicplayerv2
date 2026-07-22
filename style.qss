@@ -13,10 +13,11 @@ QLabel {
 #topPlayerBar {
     background-color: rgba(18, 18, 21, 0.95);
     border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-    max-height: 64px;
+    min-height: 68px;
+    max-height: 74px;
 }
 #topAlbumCover {
-    border-radius: 6px;
+    border-radius: 8px;
     background-color: #18181b;
     border: 1px solid rgba(255, 255, 255, 0.12);
 }
