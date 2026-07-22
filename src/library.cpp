@@ -134,17 +134,17 @@ static void cleanOrphanedCache(sqlite3 *db, const QHash<QString, bool> &visited,
 
 static bool albumLessThan(const Album *a, const Album *b) {
     int cmp = QString::localeAwareCompare(
-        QString::fromUtf8(a->name), QString::fromUtf8(b->name));
+        QString::fromStdString(a->name), QString::fromStdString(b->name));
     if (cmp != 0) return cmp < 0;
     return QString::localeAwareCompare(
-        QString::fromUtf8(a->artist), QString::fromUtf8(b->artist)) < 0;
+        QString::fromStdString(a->artist), QString::fromStdString(b->artist)) < 0;
 }
 
 static bool songLessThan(const Song *a, const Song *b) {
     if (a->disc_no != b->disc_no) return a->disc_no < b->disc_no;
     if (a->track_no != b->track_no) return a->track_no < b->track_no;
     return QString::localeAwareCompare(
-        QString::fromUtf8(a->title), QString::fromUtf8(b->title)) < 0;
+        QString::fromStdString(a->title), QString::fromStdString(b->title)) < 0;
 }
 
 static double queryDuration(const char *filepath) {
@@ -330,9 +330,9 @@ static void scanFile(const ScanTask &task) {
         Album *album = ctx->lib->albumMap.value(key, nullptr);
         if (!album) {
             album = new Album;
-            album->name = strdup(album_name);
-            album->artist = strdup(effectiveArtist);
-            album->cover_path = nullptr;
+            album->name = album_name ? album_name : "";
+            album->artist = effectiveArtist ? effectiveArtist : "";
+            album->cover_path.clear();
 
             // Search for cover art in parent dir
             QString parentDir = fi.absolutePath();
@@ -343,7 +343,7 @@ static void scanFile(const ScanTask &task) {
             for (int i = 0; i < 8; i++) {
                 QString covTest = parentDir + "/" + coverNames[i];
                 if (QFile::exists(covTest)) {
-                    album->cover_path = strdup(covTest.toUtf8().constData());
+                    album->cover_path = covTest.toUtf8().constData();
                     break;
                 }
             }
@@ -353,10 +353,10 @@ static void scanFile(const ScanTask &task) {
         }
 
         Song *song = new Song;
-        song->filepath = strdup(fullPathC);
-        song->title = title; title = nullptr;
-        song->artist = artist_name; artist_name = nullptr;
-        song->album = album_name; album_name = nullptr;
+        song->filepath = fullPathC;
+        if (title) song->title = title;
+        if (artist_name) song->artist = artist_name;
+        if (album_name) song->album = album_name;
         song->duration = duration;
         song->track_no = track_no;
         song->disc_no = disc_no;
@@ -477,17 +477,12 @@ PlayerConfig *config_load() {
     QSettings settings(configPath, QSettings::IniFormat);
 
     PlayerConfig *cfg = new PlayerConfig;
-    cfg->library_path = nullptr;
-    cfg->import_dest_path = nullptr;
-    cfg->volume = 0.8;
-    cfg->shuffle = false;
-    cfg->repeat_mode = true;
 
     QString libPath = settings.value("Player/LibraryPath").toString();
-    if (!libPath.isEmpty()) cfg->library_path = strdup(libPath.toUtf8().constData());
+    if (!libPath.isEmpty()) cfg->library_path = libPath.toStdString();
 
     QString importPath = settings.value("Player/ImportDestPath").toString();
-    if (!importPath.isEmpty()) cfg->import_dest_path = strdup(importPath.toUtf8().constData());
+    if (!importPath.isEmpty()) cfg->import_dest_path = importPath.toStdString();
 
     cfg->volume = settings.value("Player/Volume", 0.8).toDouble();
     cfg->shuffle = settings.value("Player/Shuffle", false).toBool();
@@ -505,8 +500,8 @@ void config_save(PlayerConfig *cfg) {
     QString configPath = configDir + "/config.ini";
 
     QSettings settings(configPath, QSettings::IniFormat);
-    settings.setValue("Player/LibraryPath", QString::fromUtf8(cfg->library_path ? cfg->library_path : ""));
-    settings.setValue("Player/ImportDestPath", QString::fromUtf8(cfg->import_dest_path ? cfg->import_dest_path : ""));
+    settings.setValue("Player/LibraryPath", QString::fromStdString(cfg->library_path));
+    settings.setValue("Player/ImportDestPath", QString::fromStdString(cfg->import_dest_path));
     settings.setValue("Player/Volume", cfg->volume);
     settings.setValue("Player/Shuffle", cfg->shuffle);
     settings.setValue("Player/Repeat", cfg->repeat_mode);
@@ -514,17 +509,14 @@ void config_save(PlayerConfig *cfg) {
 }
 
 void config_free(PlayerConfig *cfg) {
-    if (!cfg) return;
-    free(cfg->library_path);
-    free(cfg->import_dest_path);
     delete cfg;
 }
 
 QStringList library_get_artists(MusicLibrary *lib) {
     QStringList artists;
     if (!lib) return artists;
-    for (Album *album : lib->albums) {
-        QString artist = QString::fromUtf8(album->artist);
+    for (const auto *album : lib->albums) {
+        QString artist = QString::fromStdString(album->artist);
         if (!artists.contains(artist)) {
             artists.append(artist);
         }
@@ -536,8 +528,8 @@ QStringList library_get_artists(MusicLibrary *lib) {
 QList<Album*> library_get_albums_by_artist(MusicLibrary *lib, const QString &artist) {
     QList<Album*> result;
     if (!lib || artist.isEmpty()) return result;
-    for (Album *album : lib->albums) {
-        if (artist == QString::fromUtf8(album->artist)) {
+    for (auto *album : lib->albums) {
+        if (artist == QString::fromStdString(album->artist)) {
             result.append(album);
         }
     }
