@@ -20,23 +20,28 @@ endif()
 find_package(Qt6 REQUIRED COMPONENTS Widgets)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(SQLITE3 REQUIRED sqlite3)
+pkg_check_modules(TAGLIB REQUIRED taglib)
 
 find_library(BASS_LIB NAMES bass PATHS ${CMAKE_CURRENT_SOURCE_DIR}/lib NO_DEFAULT_PATH)
 find_library(BASS_AAC_LIB NAMES bass_aac PATHS ${CMAKE_CURRENT_SOURCE_DIR}/lib NO_DEFAULT_PATH)
 find_library(BASS_FLAC_LIB NAMES bassflac PATHS ${CMAKE_CURRENT_SOURCE_DIR}/lib NO_DEFAULT_PATH)
 
-include_directories(include ${SQLITE3_INCLUDE_DIRS})
+include_directories(include ${SQLITE3_INCLUDE_DIRS} ${TAGLIB_INCLUDE_DIRS})
 
 add_executable(musicplayer
     src/main.cpp
     src/mainwindow.cpp
     src/library.cpp
     src/lyrics.cpp
+    src/importer.cpp
+    include/importer.h
+    src/mainwindow.h
 )
 
 target_link_libraries(musicplayer PRIVATE
     Qt6::Widgets
     ${SQLITE3_LIBRARIES}
+    ${TAGLIB_LIBRARIES}
     ${BASS_LIB}
     ${BASS_AAC_LIB}
     ${BASS_FLAC_LIB}
