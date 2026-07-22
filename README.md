@@ -1,13 +1,13 @@
 # Qt 6 C++ Music Player with Clean & Lyrics Embedding Integration
 
-A premium, dark-mode Qt 6 music player written in C++ (incorporating custom C database scanning engines) using the **BASS Audio Library** for high-quality playback. It features a modern dark glassmorphic design, dynamic real-time synchronized karaoke lyrics, and integrates batch lyrics embedding (`lrcput.py`) and audio-metadata cleaning/organization (`clean_flac.py`).
+A premium, dark-mode Qt 6 music player written in C++ (incorporating custom C database scanning engines) using the **BASS Audio Library** for high-quality playback. It features a modern dark glassmorphic design, dynamic real-time synchronized karaoke lyrics, and native C++ batch lyrics embedding and FLAC-to-AAC VBR transcoding via QAAC (`wine qaac64.exe -q 2 -v 0`).
 
 ---
 
 ## Features
 
 1. **Player Sidebar (Left Pane - 300px width)**:
-   - Dynamic Album Cover art loading (checks local album files, extracts embedded art, or falls back to a clean dark-grey placeholder).
+   - Dynamic Album Cover art loading (checks local album files, extracts embedded art via TagLib 2.3, or falls back to a clean dark-grey placeholder).
    - Track Title and Artist scrolling labels.
    - Seek slider and elapsed/total duration indicators.
    - Media controls: Prev, Play/Pause, Next, Volume slider (with Mute toggle), Shuffle, and Repeat toggle buttons.
@@ -19,7 +19,7 @@ A premium, dark-mode Qt 6 music player written in C++ (incorporating custom C da
    - **Import & Clean Tab**:
      - Source folder picker and Library destination picker.
      - Toggle options: Dry run (`--dry-run`), Delete original FLAC files after conversion, Skip embedding if lyrics already exist, and Delete sidecar `.lrc` files after embedding.
-     - A real-time console log viewer capturing stdout/stderr and a progress bar.
+     - A real-time console log viewer capturing worker thread output and progress bar.
      - Automatically triggers a library re-scan on success.
 
 ---
@@ -28,10 +28,9 @@ A premium, dark-mode Qt 6 music player written in C++ (incorporating custom C da
 
 - **Build Utilities**: `gcc`, `g++`, `cmake`, `make`, and `pkg-config`.
 - **GUI Libraries**: Qt 6 Widgets development package (e.g. `qt6-qtbase-devel` on Fedora/RHEL, or `qt6-base-dev` on Debian/Ubuntu).
-- **GLib Development Libraries**: `glib2-devel` or `libglib2.0-dev`.
+- **TagLib Development Libraries**: `taglib-devel` (TagLib 2.3+).
 - **SQLite3 Development Libraries**: `sqlite-devel` or `libsqlite3-dev`.
-- **Python Libraries**: `mutagen` and `eyed3` (required for script operations and artwork/lyrics extraction).
-- **WINE & qaac**: WINE configured to run `qaac` at `~/.wine/drive_c/qaac/qaac64.exe` (needed for FLAC to M4A conversion as defined in `clean_flac.py`).
+- **WINE & qaac**: WINE configured to run `qaac` at `~/.wine/drive_c/qaac/qaac64.exe` (needed for FLAC to AAC VBR transcode).
 
 ---
 
