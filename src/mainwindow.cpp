@@ -69,19 +69,28 @@ AlbumCard::AlbumCard(Album *album, QWidget *parent)
     coverLbl->setFixedSize(124, 124);
     coverLbl->setAlignment(Qt::AlignCenter);
     
-    if (!album->songs.isEmpty()) {
+    bool loaded = false;
+    if (!album->cover_path.empty() && QFile::exists(QString::fromStdString(album->cover_path))) {
+        QPixmap pm(QString::fromStdString(album->cover_path));
+        if (!pm.isNull()) {
+            coverLbl->setPixmap(pm.scaled(124, 124, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation));
+            loaded = true;
+        }
+    }
+    if (!loaded && !album->songs.isEmpty()) {
         Song *first = album->songs.first();
         char *cov_path = resolve_cover_art(first->filepath.c_str());
         if (cov_path && QFile::exists(cov_path)) {
+            album->cover_path = cov_path;
             QPixmap pm(QString::fromUtf8(cov_path));
-            coverLbl->setPixmap(pm.scaled(124, 124, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation));
-        } else {
-            QPixmap fallback(124, 124);
-            fallback.fill(QColor("#e5e7eb"));
-            coverLbl->setPixmap(fallback);
+            if (!pm.isNull()) {
+                coverLbl->setPixmap(pm.scaled(124, 124, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation));
+                loaded = true;
+            }
         }
         free(cov_path);
-    } else {
+    }
+    if (!loaded) {
         QPixmap fallback(124, 124);
         fallback.fill(QColor("#e5e7eb"));
         coverLbl->setPixmap(fallback);
