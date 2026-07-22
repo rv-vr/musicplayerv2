@@ -65,6 +65,7 @@ AlbumCard::AlbumCard(Album *album, QWidget *parent)
     setFixedSize(115, 165);
     setFrameShape(QFrame::StyledPanel);
     setObjectName("albumCard");
+    setFocusPolicy(Qt::StrongFocus);
     
     QVBoxLayout *layout = new QVBoxLayout(this);
     layout->setContentsMargins(6, 6, 6, 6);
@@ -103,7 +104,7 @@ AlbumCard::AlbumCard(Album *album, QWidget *parent)
     layout->addWidget(coverLbl);
     
     QLabel *titleLbl = new QLabel(QString::fromStdString(album->name), this);
-    titleLbl->setStyleSheet("font-size: 11px; font-weight: 600; color: #e4e4e7;");
+    titleLbl->setStyleSheet("font-size: 12px; font-weight: 600; color: #e4e4e7;");
     titleLbl->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
     QFontMetrics fm(titleLbl->font());
     QString elidedTitle = fm.elidedText(titleLbl->text(), Qt::ElideRight, 103);
@@ -111,7 +112,7 @@ AlbumCard::AlbumCard(Album *album, QWidget *parent)
     layout->addWidget(titleLbl);
     
     QLabel *artistLbl = new QLabel(QString::fromStdString(album->artist), this);
-    artistLbl->setStyleSheet("font-size: 10px; color: #a1a1aa;");
+    artistLbl->setStyleSheet("font-size: 11px; color: #a1a1aa;");
     artistLbl->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
     QString elidedArtist = fm.elidedText(artistLbl->text(), Qt::ElideRight, 103);
     artistLbl->setText(elidedArtist);
@@ -123,6 +124,15 @@ AlbumCard::AlbumCard(Album *album, QWidget *parent)
 void AlbumCard::mousePressEvent(QMouseEvent *event) {
     emit clicked(m_album);
     QFrame::mousePressEvent(event);
+}
+
+void AlbumCard::keyPressEvent(QKeyEvent *event) {
+    if (event->key() == Qt::Key_Return || event->key() == Qt::Key_Enter || event->key() == Qt::Key_Space) {
+        emit clicked(m_album);
+        event->accept();
+    } else {
+        QFrame::keyPressEvent(event);
+    }
 }
 
 // Worker thread run implementation
@@ -325,26 +335,36 @@ void MainWindow::setupUI() {
     };
     
     m_shuffleBtn = mkTopBtn("media-playlist-shuffle", true);
+    m_shuffleBtn->setToolTip("Shuffle Playback (Ctrl+S)");
+    m_shuffleBtn->setAccessibleName("Shuffle Playback");
     m_shuffleBtn->setChecked(m_config->shuffle);
     connect(m_shuffleBtn, &QPushButton::clicked, this, &MainWindow::onShuffleToggled);
     ctrlRow->addWidget(m_shuffleBtn);
     
     m_prevBtn = mkTopBtn("media-skip-backward", false);
+    m_prevBtn->setToolTip("Previous Track (Alt+Left)");
+    m_prevBtn->setAccessibleName("Previous Track");
     connect(m_prevBtn, &QPushButton::clicked, this, &MainWindow::onPrevClicked);
     ctrlRow->addWidget(m_prevBtn);
     
     m_playPauseBtn = new QPushButton(centerSection);
     m_playPauseBtn->setObjectName("topPlayBtn");
+    m_playPauseBtn->setToolTip("Play / Pause (Space)");
+    m_playPauseBtn->setAccessibleName("Play or Pause Track");
     m_playPauseBtn->setIcon(recolorIcon("media-playback-start", QColor("#09090b"), 24));
-    m_playPauseBtn->setFixedSize(38, 38);
+    m_playPauseBtn->setFixedSize(44, 44);
     connect(m_playPauseBtn, &QPushButton::clicked, this, &MainWindow::onPlayPauseClicked);
     ctrlRow->addWidget(m_playPauseBtn);
     
     m_nextBtn = mkTopBtn("media-skip-forward", false);
+    m_nextBtn->setToolTip("Next Track (Alt+Right)");
+    m_nextBtn->setAccessibleName("Next Track");
     connect(m_nextBtn, &QPushButton::clicked, this, &MainWindow::onNextClicked);
     ctrlRow->addWidget(m_nextBtn);
     
     m_repeatBtn = mkTopBtn("media-playlist-repeat", true);
+    m_repeatBtn->setToolTip("Repeat Track / All (Ctrl+R)");
+    m_repeatBtn->setAccessibleName("Repeat Mode");
     m_repeatBtn->setChecked(m_config->repeat_mode);
     connect(m_repeatBtn, &QPushButton::clicked, this, &MainWindow::onRepeatToggled);
     ctrlRow->addWidget(m_repeatBtn);
@@ -361,6 +381,8 @@ void MainWindow::setupUI() {
     
     m_muteBtn = new QPushButton(rightSection);
     m_muteBtn->setProperty("class", "topBtn");
+    m_muteBtn->setToolTip("Mute / Unmute Audio (M)");
+    m_muteBtn->setAccessibleName("Mute Audio");
     m_muteBtn->setIcon(recolorIcon("audio-volume-high", QColor("#e4e4e7"), 18));
     m_muteBtn->setFixedSize(32, 32);
     connect(m_muteBtn, &QPushButton::clicked, this, &MainWindow::onMuteClicked);
@@ -386,7 +408,7 @@ void MainWindow::setupUI() {
     m_timeLbl = new QLabel("00:00", m_topPlayerBar);
     m_timeLbl->setObjectName("topTime");
     m_timeLbl->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
-    m_timeLbl->setFixedWidth(42);
+    m_timeLbl->setMinimumWidth(50);
     seekRow->addWidget(m_timeLbl);
     
     m_seekScale = new QSlider(Qt::Horizontal, m_topPlayerBar);
@@ -398,7 +420,7 @@ void MainWindow::setupUI() {
     m_totalTimeLbl = new QLabel("00:00", m_topPlayerBar);
     m_totalTimeLbl->setObjectName("topTotalTime");
     m_totalTimeLbl->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
-    m_totalTimeLbl->setFixedWidth(42);
+    m_totalTimeLbl->setMinimumWidth(50);
     seekRow->addWidget(m_totalTimeLbl);
     
     topBarLayout->addLayout(seekRow);
@@ -1008,6 +1030,9 @@ void MainWindow::onQueueActivated(const QModelIndex &index) {
 }
 
 void MainWindow::onClearQueueClicked() {
+    if (m_queue.isEmpty()) return;
+    auto res = QMessageBox::question(this, "Clear Play Queue", "Are you sure you want to clear all tracks from the play queue?", QMessageBox::Yes | QMessageBox::No);
+    if (res != QMessageBox::Yes) return;
     m_queue.clear();
     m_currentQueueIndex = -1;
     refreshQueueList();
