@@ -131,7 +131,7 @@ MainWindow::MainWindow(QWidget *parent)
       m_activeLyricIndex(-1),
       m_scanThread(nullptr),
       m_scanIsRunning(false),
-      m_importProcess(nullptr),
+      m_importThread(nullptr),
       m_searchEdit(nullptr),
       m_searchResultsTreeView(nullptr),
       m_searchModel(nullptr),
@@ -182,9 +182,10 @@ MainWindow::~MainWindow() {
         m_scanThread->wait(3000);
     }
 
-    if (m_importProcess && m_importProcess->state() != QProcess::NotRunning) {
-        m_importProcess->kill();
-        m_importProcess->waitForFinished();
+    if (m_importThread && m_importThread->isRunning()) {
+        m_importThread->requestInterruption();
+        m_importThread->quit();
+        m_importThread->wait(3000);
     }
 
     if (m_playStream) {
@@ -1165,68 +1166,67 @@ void MainWindow::onImportStart() {
     }
     
     m_importLogView->clear();
-    m_importProgress->setRange(0, 0); // Pulse indicator
+    m_importProgress->setRange(0, 100);
+    m_importProgress->setValue(0);
     
     m_importStartBtn->setEnabled(false);
     m_importStopBtn->setEnabled(true);
-    
-    m_importProcess = new QProcess(this);
-    connect(m_importProcess, &QProcess::readyReadStandardOutput, this, &MainWindow::onImportReadyRead);
-    connect(m_importProcess, &QProcess::readyReadStandardError, this, &MainWindow::onImportReadyRead);
-    
-    connect(m_importProcess, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
-            this, &MainWindow::onImportFinished);
-    
-    QStringList args;
-    args << src;
-    args << QString::fromStdString(m_config->import_dest_path);
-    args << (m_importDryRunChk->isChecked() ? "true" : "false");
-    args << (m_importRemoveChk->isChecked() ? "true" : "false");
-    args << (m_importSkipChk->isChecked() ? "true" : "false");
-    args << (m_importReduceChk->isChecked() ? "true" : "false");
-    
-    QString script = QCoreApplication::applicationDirPath() + "/run_import.sh";
-    if (!QFile::exists(script)) {
-        script = QCoreApplication::applicationDirPath() + "/../run_import.sh";
-    }
-    m_importProcess->start(script, args);
+
+    ImporterOptions opts;
+    opts.sourceDir = src;
+    opts.destDir = QString::fromStdString(m_config->import_dest_path);
+    opts.dryRun = m_importDryRunChk->isChecked();
+    opts.removeSourceFlac = m_importRemoveChk->isChecked();
+    opts.overwriteLyrics = !m_importSkipChk->isChecked();
+    opts.deleteLrc = m_importReduceChk->isChecked();
+
+    m_importThread = new QThread(this);
+    ImporterWorker *worker = new ImporterWorker(opts);
+    worker->moveToThread(m_importThread);
+
+    connect(m_importThread, &QThread::started, worker, &ImporterWorker::process);
+    connect(worker, &ImporterWorker::logMessage, this, [this](const QString &msg) {
+        m_importLogView->appendPlainText(msg);
+        m_importLogView->verticalScrollBar()->setValue(m_importLogView->verticalScrollBar()->maximum());
+    });
+    connect(worker, &ImporterWorker::progressUpdated, this, [this](int value, int maximum) {
+        m_importProgress->setRange(0, maximum);
+        m_importProgress->setValue(value);
+    });
+    connect(worker, &ImporterWorker::finished, this, [this, worker]() {
+        m_importThread->quit();
+        m_importThread->wait();
+        worker->deleteLater();
+        m_importThread->deleteLater();
+        m_importThread = nullptr;
+
+        onImportFinished(0, QProcess::NormalExit);
+    });
+
+    m_importThread->start();
 }
 
 void MainWindow::onImportStop() {
-    if (m_importProcess && m_importProcess->state() != QProcess::NotRunning) {
-        m_importProcess->kill();
+    if (m_importThread && m_importThread->isRunning()) {
+        m_importThread->requestInterruption();
+        m_importThread->quit();
+        m_importThread->wait();
+        m_importThread = nullptr;
+        m_importStartBtn->setEnabled(true);
+        m_importStopBtn->setEnabled(false);
+        m_importLogView->appendPlainText("\n*** Import Cancelled ***");
     }
 }
 
 void MainWindow::onImportFinished(int exitCode, QProcess::ExitStatus exitStatus) {
     m_importStartBtn->setEnabled(true);
     m_importStopBtn->setEnabled(false);
-    m_importProgress->setRange(0, 100);
-    m_importProgress->setValue(100);
     
     m_importLogView->appendPlainText("\n*** Done. Library Re-scanned. ***");
-    m_importProcess->deleteLater();
-    m_importProcess = nullptr;
     
     // Rescan library
     if (!m_config->library_path.empty()) {
         startAsyncScan(QString::fromStdString(m_config->library_path));
-    }
-}
-
-void MainWindow::onImportReadyRead() {
-    if (m_importProcess) {
-        QByteArray output = m_importProcess->readAllStandardOutput();
-        QByteArray errOutput = m_importProcess->readAllStandardError();
-        if (!output.isEmpty()) {
-            m_importLogView->appendPlainText(QString::fromLocal8Bit(output));
-        }
-        if (!errOutput.isEmpty()) {
-            m_importLogView->appendPlainText(QString::fromLocal8Bit(errOutput));
-        }
-        
-        // Auto scroll to bottom
-        m_importLogView->verticalScrollBar()->setValue(m_importLogView->verticalScrollBar()->maximum());
     }
 }
 
