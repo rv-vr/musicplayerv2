@@ -7,18 +7,20 @@ QMainWindow {
 }
 QLabel {
     color: #f4f4f5;
+    font-size: 16px;
 }
 
 #topPlayerBar {
     background-color: rgba(18, 18, 21, 0.85);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.10);
 }
 #topAlbumCover {
-    border-radius: 6px;
+    border-radius: 8px;
     background-color: #18181b;
+    border: 1px solid rgba(255, 255, 255, 0.10);
 }
 #topTrackTitle {
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 700;
     color: #f4f4f5;
 }
@@ -37,13 +39,13 @@ QLabel {
     max-height: 32px;
 }
 [class="topBtn"]:hover {
-    background-color: rgba(255, 255, 255, 0.08);
+    background-color: rgba(255, 255, 255, 0.12);
 }
 [class="topBtn"]:pressed {
-    background-color: rgba(255, 255, 255, 0.15);
+    background-color: rgba(255, 255, 255, 0.20);
 }
 [class="topBtn"]:checked {
-    background-color: rgba(56, 189, 248, 0.20);
+    background-color: rgba(56, 189, 248, 0.25);
 }
 
 #topPlayBtn {
@@ -107,7 +109,7 @@ QLabel {
 }
 
 #topTime, #topTotalTime {
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 500;
     color: #a1a1aa;
 }
@@ -121,20 +123,20 @@ QTabWidget::pane {
 }
 QTabBar {
     background-color: rgba(18, 18, 21, 0.85);
-    padding: 4px 8px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 6px 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.10);
 }
 QTabBar::tab {
-    padding: 6px 16px;
-    border-radius: 16px;
+    padding: 8px 20px;
+    border-radius: 18px;
     background: transparent;
     color: #a1a1aa;
     font-weight: 600;
-    font-size: 12px;
-    margin: 2px;
+    font-size: 13px;
+    margin: 2px 4px;
 }
 QTabBar::tab:hover {
-    background-color: rgba(255, 255, 255, 0.08);
+    background-color: rgba(255, 255, 255, 0.10);
     color: #f4f4f5;
 }
 QTabBar::tab:selected {
@@ -144,30 +146,31 @@ QTabBar::tab:selected {
 }
 
 #albumCard {
-    background-color: rgba(24, 24, 27, 0.70);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 10px;
+    background-color: rgba(24, 24, 27, 0.80);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    border-radius: 12px;
 }
 #albumCard:hover {
-    background-color: rgba(39, 39, 42, 0.80);
+    background-color: rgba(39, 39, 42, 0.90);
     border: 1px solid #38bdf8;
 }
 
 #artistList {
-    background-color: rgba(18, 18, 21, 0.70);
+    background-color: rgba(18, 18, 21, 0.85);
     border: none;
-    border-right: 1px solid rgba(255, 255, 255, 0.08);
-    font-size: 12px;
+    border-right: 1px solid rgba(255, 255, 255, 0.10);
+    font-size: 13px;
     font-weight: 500;
-    padding: 0;
+    padding: 4px;
     outline: none;
 }
 #artistList::item {
-    padding: 4px 10px;
+    padding: 6px 12px;
     border: none;
+    border-radius: 6px;
 }
 #artistList::item:hover {
-    background-color: rgba(56, 189, 248, 0.12);
+    background-color: rgba(56, 189, 248, 0.15);
 }
 #artistList::item:selected {
     background-color: #38bdf8;
@@ -182,10 +185,10 @@ QTabBar::tab:selected {
 #artistBackBtn {
     background-color: transparent;
     border: none;
-    font-size: 12px;
+    font-size: 13px;
     color: #38bdf8;
     font-weight: 600;
-    padding: 4px 0;
+    padding: 6px 0;
     text-align: left;
 }
 #artistBackBtn:hover {
@@ -193,41 +196,42 @@ QTabBar::tab:selected {
 }
 
 #artistAlbumTitle {
-    font-size: 15px;
+    font-size: 21px;
     font-weight: 700;
     color: #f4f4f5;
-    padding: 4px 0;
+    padding: 6px 0;
 }
 
 #artistTrackList {
-    background-color: rgba(18, 18, 21, 0.70);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 8px;
-    font-size: 12px;
+    background-color: rgba(18, 18, 21, 0.80);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    border-radius: 12px;
+    font-size: 13px;
     font-family: monospace;
-    padding: 2px;
+    padding: 4px;
 }
 #artistTrackList::item {
-    padding: 4px 8px;
-    border-radius: 4px;
+    padding: 6px 10px;
+    border-radius: 6px;
 }
 #artistTrackList::item:hover {
-    background-color: rgba(255, 255, 255, 0.06);
+    background-color: rgba(255, 255, 255, 0.08);
 }
 #artistTrackList::item:selected {
     background-color: #38bdf8;
     color: #09090b;
+    font-weight: 700;
 }
 
 #artistPlayAll {
     background-color: #38bdf8;
     color: #09090b;
     border: none;
-    border-radius: 6px;
-    padding: 6px 14px;
+    border-radius: 10px;
+    padding: 8px 18px;
     font-weight: 700;
-    font-size: 12px;
-    margin-top: 6px;
+    font-size: 13px;
+    margin-top: 8px;
 }
 #artistPlayAll:hover {
     background-color: #7dd3fc;
@@ -237,9 +241,9 @@ QTabBar::tab:selected {
 }
 
 #artistEmpty {
-    font-size: 14px;
+    font-size: 16px;
     color: #a1a1aa;
-    padding: 20px;
+    padding: 24px;
 }
 
 QScrollBar:vertical {
@@ -277,16 +281,16 @@ QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
 }
 
 QPushButton {
-    background-color: rgba(24, 24, 27, 0.80);
+    background-color: rgba(24, 24, 27, 0.85);
     color: #f4f4f5;
     border: 1px solid rgba(255, 255, 255, 0.10);
-    border-radius: 8px;
-    padding: 6px 14px;
+    border-radius: 10px;
+    padding: 8px 16px;
     font-weight: 600;
     font-size: 13px;
 }
 QPushButton:hover {
-    background-color: rgba(39, 39, 42, 0.90);
+    background-color: rgba(39, 39, 42, 0.95);
     border-color: #38bdf8;
 }
 QPushButton:pressed {
@@ -297,28 +301,30 @@ QPushButton:pressed {
     background-color: #38bdf8;
     color: #09090b;
     border: none;
-    padding: 8px 20px;
+    border-radius: 10px;
+    padding: 10px 24px;
     font-weight: 700;
+    font-size: 14px;
 }
 #importStartBtn:hover, #settingsSaveBtn:hover {
     background-color: #7dd3fc;
 }
 
 QTreeView {
-    background-color: rgba(18, 18, 21, 0.70);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 8px;
-    padding: 2px;
-    alternate-background-color: rgba(24, 24, 27, 0.40);
+    background-color: rgba(18, 18, 21, 0.80);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    border-radius: 12px;
+    padding: 4px;
+    alternate-background-color: rgba(24, 24, 27, 0.50);
 }
 QTreeView::item {
-    padding: 3px 6px;
+    padding: 4px 8px;
     color: #f4f4f5;
     border: none;
-    font-size: 12px;
+    font-size: 13px;
 }
 QTreeView::item:hover {
-    background-color: rgba(56, 189, 248, 0.12);
+    background-color: rgba(56, 189, 248, 0.15);
 }
 QTreeView::item:selected {
     background-color: #38bdf8;
@@ -329,19 +335,19 @@ QHeaderView::section {
     background-color: #121215;
     color: #a1a1aa;
     border: none;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.10);
     font-weight: 700;
-    font-size: 11px;
-    padding: 4px 6px;
+    font-size: 12px;
+    padding: 6px 8px;
 }
 
 QLineEdit {
-    background-color: rgba(18, 18, 21, 0.80);
+    background-color: rgba(18, 18, 21, 0.85);
     border: 1px solid rgba(255, 255, 255, 0.10);
-    border-radius: 8px;
-    padding: 8px;
+    border-radius: 10px;
+    padding: 10px;
     color: #f4f4f5;
-    font-size: 13px;
+    font-size: 14px;
     selection-background-color: #38bdf8;
     selection-color: #09090b;
 }
@@ -350,18 +356,18 @@ QLineEdit:focus {
 }
 
 QPlainTextEdit {
-    background-color: rgba(18, 18, 21, 0.80);
+    background-color: rgba(18, 18, 21, 0.85);
     border: 1px solid rgba(255, 255, 255, 0.10);
-    border-radius: 8px;
+    border-radius: 10px;
     color: #f4f4f5;
-    font-size: 12px;
+    font-size: 13px;
     selection-background-color: #38bdf8;
     selection-color: #09090b;
 }
 
 QStatusBar {
     background-color: #09090b;
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    border-top: 1px solid rgba(255, 255, 255, 0.10);
 }
 #statusLabel {
     font-size: 12px;
