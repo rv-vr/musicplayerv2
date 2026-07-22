@@ -57,23 +57,23 @@ int count_audio_files(const QString &dir_path) {
 AlbumCard::AlbumCard(Album *album, QWidget *parent)
     : QFrame(parent), m_album(album)
 {
-    setFixedSize(140, 200);
+    setFixedSize(115, 165);
     setFrameShape(QFrame::StyledPanel);
     setObjectName("albumCard");
     
     QVBoxLayout *layout = new QVBoxLayout(this);
-    layout->setContentsMargins(8, 8, 8, 8);
-    layout->setSpacing(6);
+    layout->setContentsMargins(6, 6, 6, 6);
+    layout->setSpacing(3);
     
     QLabel *coverLbl = new QLabel(this);
-    coverLbl->setFixedSize(124, 124);
+    coverLbl->setFixedSize(103, 103);
     coverLbl->setAlignment(Qt::AlignCenter);
     
     bool loaded = false;
     if (!album->cover_path.empty() && QFile::exists(QString::fromStdString(album->cover_path))) {
         QPixmap pm(QString::fromStdString(album->cover_path));
         if (!pm.isNull()) {
-            coverLbl->setPixmap(pm.scaled(124, 124, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation));
+            coverLbl->setPixmap(pm.scaled(103, 103, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation));
             loaded = true;
         }
     }
@@ -84,31 +84,31 @@ AlbumCard::AlbumCard(Album *album, QWidget *parent)
             album->cover_path = cov_path;
             QPixmap pm(QString::fromUtf8(cov_path));
             if (!pm.isNull()) {
-                coverLbl->setPixmap(pm.scaled(124, 124, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation));
+                coverLbl->setPixmap(pm.scaled(103, 103, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation));
                 loaded = true;
             }
         }
         free(cov_path);
     }
     if (!loaded) {
-        QPixmap fallback(124, 124);
+        QPixmap fallback(103, 103);
         fallback.fill(QColor("#e5e7eb"));
         coverLbl->setPixmap(fallback);
     }
     layout->addWidget(coverLbl);
     
     QLabel *titleLbl = new QLabel(QString::fromStdString(album->name), this);
-    titleLbl->setStyleSheet("font-size: 12px; font-weight: 700; color: #1a1a1a;");
+    titleLbl->setStyleSheet("font-size: 11px; font-weight: 600; color: #1a1a1a;");
     titleLbl->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
     QFontMetrics fm(titleLbl->font());
-    QString elidedTitle = fm.elidedText(titleLbl->text(), Qt::ElideRight, 120);
+    QString elidedTitle = fm.elidedText(titleLbl->text(), Qt::ElideRight, 103);
     titleLbl->setText(elidedTitle);
     layout->addWidget(titleLbl);
     
     QLabel *artistLbl = new QLabel(QString::fromStdString(album->artist), this);
-    artistLbl->setStyleSheet("font-size: 11px; color: #6b7280;");
+    artistLbl->setStyleSheet("font-size: 10px; color: #6b7280;");
     artistLbl->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
-    QString elidedArtist = fm.elidedText(artistLbl->text(), Qt::ElideRight, 120);
+    QString elidedArtist = fm.elidedText(artistLbl->text(), Qt::ElideRight, 103);
     artistLbl->setText(elidedArtist);
     layout->addWidget(artistLbl);
     
