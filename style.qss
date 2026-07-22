@@ -156,13 +156,13 @@ QTabBar::tab:selected {
     background-color: #ffffff;
     border: none;
     border-right: 1px solid #d1d5db;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 500;
     padding: 0;
     outline: none;
 }
 #artistList::item {
-    padding: 8px 16px;
+    padding: 4px 10px;
     border: none;
 }
 #artistList::item:hover {
@@ -192,22 +192,22 @@ QTabBar::tab:selected {
 }
 
 #artistAlbumTitle {
-    font-size: 18px;
+    font-size: 15px;
     font-weight: 700;
     color: #1a1a1a;
-    padding: 8px 0;
+    padding: 4px 0;
 }
 
 #artistTrackList {
     background-color: #ffffff;
     border: 1px solid #d1d5db;
     border-radius: 8px;
-    font-size: 13px;
+    font-size: 12px;
     font-family: monospace;
-    padding: 4px;
+    padding: 2px;
 }
 #artistTrackList::item {
-    padding: 8px 12px;
+    padding: 4px 8px;
     border-radius: 4px;
 }
 #artistTrackList::item:hover {
@@ -222,11 +222,11 @@ QTabBar::tab:selected {
     background-color: #3c7fb1;
     color: #ffffff;
     border: none;
-    border-radius: 8px;
-    padding: 8px 20px;
+    border-radius: 6px;
+    padding: 6px 14px;
     font-weight: 700;
-    font-size: 13px;
-    margin-top: 8px;
+    font-size: 12px;
+    margin-top: 6px;
 }
 #artistPlayAll:hover {
     background-color: #4a8fc4;
@@ -317,13 +317,14 @@ QTreeView {
     background-color: #ffffff;
     border: 1px solid #d1d5db;
     border-radius: 8px;
-    padding: 4px;
+    padding: 2px;
     alternate-background-color: #f9fafb;
 }
 QTreeView::item {
-    padding: 8px;
+    padding: 3px 6px;
     color: #1a1a1a;
     border: none;
+    font-size: 12px;
 }
 QTreeView::item:hover {
     background-color: rgba(60, 127, 177, 0.08);
@@ -340,7 +341,7 @@ QHeaderView::section {
     border-bottom: 1px solid #d1d5db;
     font-weight: 700;
     font-size: 11px;
-    padding: 6px 8px;
+    padding: 4px 6px;
 }
 
 QLineEdit {
