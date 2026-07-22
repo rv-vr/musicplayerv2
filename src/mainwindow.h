@@ -213,6 +213,7 @@ private:
 
     QTimer *m_positionTimer;
     QFileSystemWatcher *m_styleWatcher;
+    QList<int> m_lyricLineTargets;
 };
 
 #endif
