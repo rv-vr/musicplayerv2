@@ -173,7 +173,6 @@ private:
 
     QScrollArea *m_lyricsScroll;
     QWidget *m_lyricsContainer;
-    QLabel *m_pinnedActiveLyricLabel;
     QWidget *m_topPlayerBar;
     QLabel *m_prevAmbientBackgroundLbl;
     QLabel *m_ambientBackgroundLbl;
