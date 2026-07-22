@@ -26,6 +26,7 @@
 #include <QPlainTextEdit>
 #include <QListWidget>
 #include <QAtomicInt>
+#include <QFileSystemWatcher>
 
 #include "library.h"
 #include "lyrics.h"
@@ -211,6 +212,7 @@ private:
     Album *m_selectedAlbum;
 
     QTimer *m_positionTimer;
+    QFileSystemWatcher *m_styleWatcher;
 };
 
 #endif
