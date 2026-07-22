@@ -25,6 +25,7 @@
 #include <taglib/mpegfile.h>
 #include <taglib/id3v2tag.h>
 #include <taglib/attachedpictureframe.h>
+#include <taglib/synchronizedlyricsframe.h>
 #include <taglib/mp4file.h>
 #include <taglib/mp4tag.h>
 #include <taglib/xiphcomment.h>
@@ -180,7 +181,7 @@ static void gatherFilesRecursive(const QString &dirPath, QStringList &files) {
         it.next();
         if (it.fileInfo().isDir()) continue;
         QString ext = it.fileInfo().suffix().toLower();
-        if (ext == "m4a" || ext == "mp3" || ext == "flac") {
+        if (ext == "m4a" || ext == "aac" || ext == "mp3" || ext == "flac") {
             files.append(it.filePath());
         }
     }
@@ -690,7 +691,7 @@ static QString extractEmbeddedCover(const QString &songPath) {
                 imgData = QByteArray(picFrame->picture().data(), picFrame->picture().size());
             }
         }
-    } else if (ext == "m4a") {
+    } else if (ext == "m4a" || ext == "aac") {
         TagLib::MP4::File mp4(pathBytes.constData());
         if (mp4.isValid() && mp4.tag()) {
             auto items = mp4.tag()->itemMap();
@@ -739,7 +740,9 @@ static QString extractEmbeddedLyrics(const QString &songPath) {
         TagLib::FLAC::File flac(pathBytes.constData());
         if (flac.isValid() && flac.xiphComment()) {
             auto map = flac.xiphComment()->fieldListMap();
-            if (map.contains("UNSYNCEDLYRICS") && !map["UNSYNCEDLYRICS"].isEmpty()) {
+            if (map.contains("SYNCEDLYRICS") && !map["SYNCEDLYRICS"].isEmpty()) {
+                lyricsText = map["SYNCEDLYRICS"].front().to8Bit(true);
+            } else if (map.contains("UNSYNCEDLYRICS") && !map["UNSYNCEDLYRICS"].isEmpty()) {
                 lyricsText = map["UNSYNCEDLYRICS"].front().to8Bit(true);
             } else if (map.contains("LYRICS") && !map["LYRICS"].isEmpty()) {
                 lyricsText = map["LYRICS"].front().to8Bit(true);
@@ -748,17 +751,47 @@ static QString extractEmbeddedLyrics(const QString &songPath) {
     } else if (ext == "mp3") {
         TagLib::MPEG::File mpeg(pathBytes.constData());
         if (mpeg.isValid() && mpeg.ID3v2Tag()) {
-            const auto &frames = mpeg.ID3v2Tag()->frameList("USLT");
-            if (!frames.isEmpty()) {
-                lyricsText = frames.front()->toString().to8Bit(true);
+            auto *tag = mpeg.ID3v2Tag();
+
+            const auto &syltFrames = tag->frameList("SYLT");
+            if (!syltFrames.isEmpty()) {
+                for (const auto &frame : syltFrames) {
+                    auto *sylt = dynamic_cast<const TagLib::ID3v2::SynchronizedLyricsFrame*>(frame);
+                    if (!sylt || sylt->type() != TagLib::ID3v2::SynchronizedLyricsFrame::Lyrics)
+                        continue;
+                    auto synchedText = sylt->synchedText();
+                    if (synchedText.isEmpty())
+                        continue;
+                    std::string lrc;
+                    char timebuf[16];
+                    for (const auto &entry : synchedText) {
+                        unsigned int ms = entry.time;
+                        int min = ms / 60000;
+                        int sec = (ms % 60000) / 1000;
+                        int cs = (ms % 1000) / 10;
+                        std::snprintf(timebuf, sizeof(timebuf), "[%02d:%02d.%02d]", min, sec, cs);
+                        lrc += timebuf;
+                        lrc += entry.text.to8Bit(true);
+                        lrc += '\n';
+                    }
+                    lyricsText = std::move(lrc);
+                    break;
+                }
+            }
+
+            if (lyricsText.empty()) {
+                const auto &usltFrames = tag->frameList("USLT");
+                if (!usltFrames.isEmpty()) {
+                    lyricsText = usltFrames.front()->toString().to8Bit(true);
+                }
             }
         }
-    } else if (ext == "m4a") {
+    } else if (ext == "m4a" || ext == "aac") {
         TagLib::MP4::File mp4(pathBytes.constData());
         if (mp4.isValid() && mp4.tag()) {
             auto items = mp4.tag()->itemMap();
-            if (items.contains("©lyr") && !items["©lyr"].toStringList().isEmpty()) {
-                lyricsText = items["©lyr"].toStringList().front().to8Bit(true);
+            if (items.contains("\xA9lyr") && !items["\xA9lyr"].toStringList().isEmpty()) {
+                lyricsText = items["\xA9lyr"].toStringList().front().to8Bit(true);
             }
         }
     }
@@ -809,7 +842,6 @@ char *resolve_lyrics(const char *song_path) {
     if (!song_path) return nullptr;
 
     QString sp = QString::fromUtf8(song_path);
-
     // 1. Sidecar .lrc
     int dot = sp.lastIndexOf('.');
     if (dot >= 0) {

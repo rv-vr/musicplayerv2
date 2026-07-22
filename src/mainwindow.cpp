@@ -42,7 +42,7 @@ static void count_recursive_qt(const QString &dir_path, int *count) {
             count_recursive_qt(entry.absoluteFilePath(), count);
         } else {
             QString ext = entry.suffix().toLower();
-            if (ext == "mp3" || ext == "m4a" || ext == "flac") {
+            if (ext == "mp3" || ext == "m4a" || ext == "aac" || ext == "flac") {
                 (*count)++;
             }
         }
@@ -993,7 +993,6 @@ void MainWindow::updateAlbumCover(const QString &song_path) {
 }
 
 void MainWindow::loadSongLyrics(const QString &song_path) {
-    // Clear old labels
     qDeleteAll(m_lyricLabels);
     m_lyricLabels.clear();
     m_activeLyricIndex = -1;
@@ -1049,7 +1048,7 @@ void MainWindow::updateLyricsDisplay(double position) {
     // Highlight new active lyric (Spotify style: 22px bold prominent blue)
     if (m_activeLyricIndex >= 0 && m_activeLyricIndex < m_lyricLabels.size()) {
         QLabel *activeLabel = m_lyricLabels.at(m_activeLyricIndex);
-        activeLabel->setStyleSheet("font-size: 22px; color: #3c7fb1; font-weight: 800; padding: 12px 0;");
+        activeLabel->setStyleSheet("font-size: 36px; color: #3c7fb1; font-weight: 800; padding: 12px 0;");
         
         // Spotify-style smooth scrolling animation (350ms OutCubic easing)
         QScrollBar *vBar = m_lyricsScroll->verticalScrollBar();

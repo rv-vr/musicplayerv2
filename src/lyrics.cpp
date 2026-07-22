@@ -18,7 +18,6 @@ Lyrics *lyrics_load(const char *filepath) {
 
     char line[1024];
     while (fgets(line, sizeof(line), fp)) {
-        // Strip trailing whitespace
         size_t len = strlen(line);
         while (len > 0 && (line[len-1] == '\n' || line[len-1] == '\r' || line[len-1] == ' ')) {
             line[--len] = '\0';
@@ -40,7 +39,6 @@ Lyrics *lyrics_load(const char *filepath) {
             p = close + 1;
         }
 
-        // Clean the lyrics text
         while (*p == ' ' || *p == '\t') p++;
         char *lyricText = strdup(p);
 
