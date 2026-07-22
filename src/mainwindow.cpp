@@ -1046,6 +1046,7 @@ void MainWindow::loadSongLyrics(const QString &song_path) {
                 QLabel *lbl = new QLabel(QString::fromUtf8(line.text), m_lyricsContainer);
                 lbl->setAlignment(Qt::AlignCenter);
                 lbl->setWordWrap(true);
+                lbl->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
                 lbl->setProperty("class", "lyric-line");
                 lbl->setStyleSheet("font-family: 'Inter', 'Noto Sans KR', 'NanumGothic', sans-serif; font-size: 16px; color: #9ca3af; padding: 12px 0; font-weight: 600; border: 1px solid;");
                 m_lyricsContainer->layout()->addWidget(lbl);
@@ -1055,6 +1056,7 @@ void MainWindow::loadSongLyrics(const QString &song_path) {
             QLabel *lbl = new QLabel("Instrumental / No Lyrics Found", m_lyricsContainer);
             lbl->setAlignment(Qt::AlignCenter);
             lbl->setWordWrap(true);
+            lbl->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
             lbl->setStyleSheet("font-family: 'Inter', 'Noto Sans KR', 'NanumGothic', sans-serif; font-size: 16px; color: #9ca3af; font-weight: 600; padding: 20px; border: 1px solid;");
             m_lyricsContainer->layout()->addWidget(lbl);
             m_lyricLabels.append(lbl);
