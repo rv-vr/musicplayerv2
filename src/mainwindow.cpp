@@ -16,6 +16,18 @@
 #include <QRandomGenerator>
 #include <QListWidget>
 #include <QFrame>
+#include <QPainter>
+
+static QIcon recolorIcon(const QString &themeIcon, const QColor &color, int size = 28) {
+    QPixmap base(size, size);
+    base.fill(Qt::transparent);
+    QPainter p(&base);
+    QIcon::fromTheme(themeIcon).paint(&p, QRect(0, 0, size, size));
+    p.setCompositionMode(QPainter::CompositionMode_SourceIn);
+    p.fillRect(base.rect(), color);
+    p.end();
+    return QIcon(base);
+}
 
 // Helper recursive file counter
 static void count_recursive_qt(const QString &dir_path, int *count) {
@@ -59,7 +71,7 @@ AlbumCard::AlbumCard(Album *album, QWidget *parent)
     
     if (!album->songs.isEmpty()) {
         Song *first = album->songs.first();
-        char *cov_path = resolve_cover_art(first->filepath);
+        char *cov_path = resolve_cover_art(first->filepath.c_str());
         if (cov_path && QFile::exists(cov_path)) {
             QPixmap pm(QString::fromUtf8(cov_path));
             coverLbl->setPixmap(pm.scaled(124, 124, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation));
@@ -76,7 +88,7 @@ AlbumCard::AlbumCard(Album *album, QWidget *parent)
     }
     layout->addWidget(coverLbl);
     
-    QLabel *titleLbl = new QLabel(QString::fromUtf8(album->name), this);
+    QLabel *titleLbl = new QLabel(QString::fromStdString(album->name), this);
     titleLbl->setStyleSheet("font-size: 12px; font-weight: 700; color: #1a1a1a;");
     titleLbl->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
     QFontMetrics fm(titleLbl->font());
@@ -84,7 +96,7 @@ AlbumCard::AlbumCard(Album *album, QWidget *parent)
     titleLbl->setText(elidedTitle);
     layout->addWidget(titleLbl);
     
-    QLabel *artistLbl = new QLabel(QString::fromUtf8(album->artist), this);
+    QLabel *artistLbl = new QLabel(QString::fromStdString(album->artist), this);
     artistLbl->setStyleSheet("font-size: 11px; color: #6b7280;");
     artistLbl->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
     QString elidedArtist = fm.elidedText(artistLbl->text(), Qt::ElideRight, 120);
@@ -112,8 +124,8 @@ MainWindow::MainWindow(QWidget *parent)
       m_isPlaying(false),
       m_isMuted(false),
       m_savedVolume(0.8),
-      m_library(nullptr),
-      m_config(nullptr),
+      m_library(library_new()),
+      m_config(config_load()),
       m_currentQueueIndex(-1),
       m_currentLyrics(nullptr),
       m_activeLyricIndex(-1),
@@ -132,21 +144,20 @@ MainWindow::MainWindow(QWidget *parent)
         qWarning() << "BASS_Init error:" << BASS_ErrorGetCode();
     }
     
-    // Load AAC Plugin
+    // Load Audio Plugins (AAC, FLAC)
     if (bassOk) {
         QString appDir = QCoreApplication::applicationDirPath();
-        QString pluginPath = appDir + "/lib/libbass_aac.so";
-        if (!QFile::exists(pluginPath)) {
-            pluginPath = appDir + "/../lib/libbass_aac.so";
-        }
-        if (BASS_PluginLoad(pluginPath.toUtf8().constData(), 0) == 0) {
-            qWarning() << "Warning: BASS plugin not loaded at" << pluginPath;
+        const std::vector<QString> plugins = {"libbass_aac.so", "libbassflac.so"};
+        for (const auto &pluginName : plugins) {
+            QString pluginPath = appDir + "/lib/" + pluginName;
+            if (!QFile::exists(pluginPath)) {
+                pluginPath = appDir + "/../lib/" + pluginName;
+            }
+            if (BASS_PluginLoad(pluginPath.toUtf8().constData(), 0) == 0) {
+                qWarning() << "Warning: BASS plugin not loaded at" << pluginPath;
+            }
         }
     }
-    
-    // Initialize Backend State
-    m_library = library_new();
-    m_config = config_load();
     
     // Setup UI
     setupUI();
@@ -160,8 +171,8 @@ MainWindow::MainWindow(QWidget *parent)
     m_positionTimer->start(100);
     
     // Initial Scan
-    if (m_config->library_path && strlen(m_config->library_path) > 0) {
-        startAsyncScan(QString::fromUtf8(m_config->library_path));
+    if (!m_config->library_path.empty()) {
+        startAsyncScan(QString::fromStdString(m_config->library_path));
     }
 }
 
@@ -171,25 +182,15 @@ MainWindow::~MainWindow() {
         m_scanThread->wait(3000);
     }
 
-    if (m_playStream) {
-        BASS_StreamFree(m_playStream);
-    }
-    BASS_Free();
-
-    if (m_library) {
-        library_free(m_library);
-    }
-    if (m_config) {
-        config_free(m_config);
-    }
-    if (m_currentLyrics) {
-        lyrics_free(m_currentLyrics);
-    }
-
     if (m_importProcess && m_importProcess->state() != QProcess::NotRunning) {
         m_importProcess->kill();
         m_importProcess->waitForFinished();
     }
+
+    if (m_playStream) {
+        BASS_StreamFree(m_playStream);
+    }
+    BASS_Free();
 }
 
 void MainWindow::setupUI() {
@@ -201,108 +202,152 @@ void MainWindow::setupUI() {
     mainLayout->setSpacing(0);
     
     // -------------------------------------------------------------
-    // TOP PLAYER BAR
+    // TOP PLAYER BAR (Apple Music Style)
     // -------------------------------------------------------------
     QWidget *topPlayerBar = new QWidget(m_centralWidget);
     topPlayerBar->setObjectName("topPlayerBar");
     
     QVBoxLayout *topBarLayout = new QVBoxLayout(topPlayerBar);
-    topBarLayout->setContentsMargins(8, 4, 8, 4);
-    topBarLayout->setSpacing(2);
+    topBarLayout->setContentsMargins(16, 10, 16, 8);
+    topBarLayout->setSpacing(8);
     
+    // Top Row: [ Left: Cover + Title/Artist ]  [ Center: Playback Controls ]  [ Right: Volume ]
     QHBoxLayout *topRow = new QHBoxLayout();
-    topRow->setSpacing(8);
     topRow->setContentsMargins(0, 0, 0, 0);
+    topRow->setSpacing(12);
     
-    // Cover thumbnail
-    m_albumCoverImg = new QLabel(topPlayerBar);
+    // --- LEFT SECTION: Cover + Info ---
+    QWidget *leftSection = new QWidget(topPlayerBar);
+    leftSection->setObjectName("topLeftSection");
+    QHBoxLayout *leftLayout = new QHBoxLayout(leftSection);
+    leftLayout->setContentsMargins(0, 0, 0, 0);
+    leftLayout->setSpacing(12);
+    
+    m_albumCoverImg = new QLabel(leftSection);
+    m_albumCoverImg->setObjectName("topAlbumCover");
     m_albumCoverImg->setFixedSize(48, 48);
     m_albumCoverImg->setAlignment(Qt::AlignCenter);
-    topRow->addWidget(m_albumCoverImg);
     
-    // Track info
+    QPixmap fallback(48, 48);
+    fallback.fill(QColor("#e5e7eb"));
+    m_albumCoverImg->setPixmap(fallback);
+    leftLayout->addWidget(m_albumCoverImg);
+    
     QVBoxLayout *infoStack = new QVBoxLayout();
-    infoStack->setSpacing(0);
+    infoStack->setSpacing(2);
     infoStack->setContentsMargins(0, 0, 0, 0);
-    m_trackTitleLbl = new QLabel("Not Playing", topPlayerBar);
+    infoStack->setAlignment(Qt::AlignVCenter);
+    
+    m_trackTitleLbl = new QLabel("Not Playing", leftSection);
     m_trackTitleLbl->setObjectName("topTrackTitle");
-    m_trackTitleLbl->setFixedHeight(20);
     infoStack->addWidget(m_trackTitleLbl);
-    m_trackArtistLbl = new QLabel("", topPlayerBar);
+    
+    m_trackArtistLbl = new QLabel("Select a track to play", leftSection);
     m_trackArtistLbl->setObjectName("topTrackArtist");
-    m_trackArtistLbl->setFixedHeight(18);
     infoStack->addWidget(m_trackArtistLbl);
-    topRow->addLayout(infoStack);
     
-    topRow->addStretch();
+    leftLayout->addLayout(infoStack);
+    leftLayout->addStretch();
     
-    // Seek slider + time (hidden when idle)
-    m_seekScale = new QSlider(Qt::Horizontal, topPlayerBar);
-    m_seekScale->setObjectName("topSeek");
-    m_seekScale->setRange(0, 1000);
-    m_seekScale->setFixedWidth(140);
-    connect(m_seekScale, &QSlider::sliderMoved, this, &MainWindow::onSeekChanged);
-    m_seekScale->hide();
-    topRow->addWidget(m_seekScale);
+    topRow->addWidget(leftSection, 1);
     
-    m_timeLbl = new QLabel("00:00 / 00:00", topPlayerBar);
-    m_timeLbl->setObjectName("topTime");
-    m_timeLbl->hide();
-    topRow->addWidget(m_timeLbl);
+    // --- CENTER SECTION: Playback Controls ---
+    QWidget *centerSection = new QWidget(topPlayerBar);
+    centerSection->setObjectName("topCenterSection");
+    QHBoxLayout *ctrlRow = new QHBoxLayout(centerSection);
+    ctrlRow->setContentsMargins(0, 0, 0, 0);
+    ctrlRow->setSpacing(8);
+    ctrlRow->setAlignment(Qt::AlignCenter);
     
-    topRow->addStretch();
+    QColor whiteIcon(60, 127, 177);
     
-    // Controls — smaller buttons for top bar
     auto mkTopBtn = [&](const QString &icon, bool chk) -> QPushButton* {
-        QPushButton *b = new QPushButton(topPlayerBar);
+        QPushButton *b = new QPushButton(centerSection);
         b->setProperty("class", "topBtn");
         b->setCheckable(chk);
-        b->setIcon(QIcon::fromTheme(icon));
-        b->setFixedSize(28, 28);
+        b->setIcon(recolorIcon(icon, whiteIcon, 20));
+        b->setFixedSize(32, 32);
         return b;
     };
     
     m_shuffleBtn = mkTopBtn("media-playlist-shuffle", true);
     m_shuffleBtn->setChecked(m_config->shuffle);
     connect(m_shuffleBtn, &QPushButton::clicked, this, &MainWindow::onShuffleToggled);
-    topRow->addWidget(m_shuffleBtn);
+    ctrlRow->addWidget(m_shuffleBtn);
     
     m_prevBtn = mkTopBtn("media-skip-backward", false);
     connect(m_prevBtn, &QPushButton::clicked, this, &MainWindow::onPrevClicked);
-    topRow->addWidget(m_prevBtn);
+    ctrlRow->addWidget(m_prevBtn);
     
-    m_playPauseBtn = new QPushButton(topPlayerBar);
+    m_playPauseBtn = new QPushButton(centerSection);
     m_playPauseBtn->setObjectName("topPlayBtn");
-    m_playPauseBtn->setIcon(QIcon::fromTheme("media-playback-start"));
-    m_playPauseBtn->setFixedSize(36, 36);
+    m_playPauseBtn->setIcon(recolorIcon("media-playback-start", QColor("#ffffff"), 24));
+    m_playPauseBtn->setFixedSize(38, 38);
     connect(m_playPauseBtn, &QPushButton::clicked, this, &MainWindow::onPlayPauseClicked);
-    topRow->addWidget(m_playPauseBtn);
+    ctrlRow->addWidget(m_playPauseBtn);
     
     m_nextBtn = mkTopBtn("media-skip-forward", false);
     connect(m_nextBtn, &QPushButton::clicked, this, &MainWindow::onNextClicked);
-    topRow->addWidget(m_nextBtn);
+    ctrlRow->addWidget(m_nextBtn);
     
     m_repeatBtn = mkTopBtn("media-playlist-repeat", true);
     m_repeatBtn->setChecked(m_config->repeat_mode);
     connect(m_repeatBtn, &QPushButton::clicked, this, &MainWindow::onRepeatToggled);
-    topRow->addWidget(m_repeatBtn);
+    ctrlRow->addWidget(m_repeatBtn);
     
-    topRow->addStretch();
+    topRow->addWidget(centerSection, 1);
     
-    // Volume
-    m_muteBtn = mkTopBtn("audio-volume-high", false);
+    // --- RIGHT SECTION: Volume ---
+    QWidget *rightSection = new QWidget(topPlayerBar);
+    rightSection->setObjectName("topRightSection");
+    QHBoxLayout *rightLayout = new QHBoxLayout(rightSection);
+    rightLayout->setContentsMargins(0, 0, 0, 0);
+    rightLayout->setSpacing(8);
+    rightLayout->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+    
+    m_muteBtn = new QPushButton(rightSection);
+    m_muteBtn->setProperty("class", "topBtn");
+    m_muteBtn->setIcon(recolorIcon("audio-volume-high", QColor("#6b7280"), 18));
+    m_muteBtn->setFixedSize(32, 32);
     connect(m_muteBtn, &QPushButton::clicked, this, &MainWindow::onMuteClicked);
-    topRow->addWidget(m_muteBtn);
+    rightLayout->addWidget(m_muteBtn);
     
-    m_volumeScale = new QSlider(Qt::Horizontal, topPlayerBar);
+    m_volumeScale = new QSlider(Qt::Horizontal, rightSection);
     m_volumeScale->setObjectName("topVolume");
     m_volumeScale->setRange(0, 100);
     m_volumeScale->setValue(m_config->volume * 100);
-    m_volumeScale->setFixedWidth(80);
+    m_volumeScale->setFixedWidth(100);
     connect(m_volumeScale, &QSlider::valueChanged, this, &MainWindow::onVolumeChanged);
-    topRow->addWidget(m_volumeScale);
+    rightLayout->addWidget(m_volumeScale);
+    
+    topRow->addWidget(rightSection, 1);
     
     topBarLayout->addLayout(topRow);
+    
+    // --- BOTTOM ROW: Seekbar + Time Displays ---
+    QHBoxLayout *seekRow = new QHBoxLayout();
+    seekRow->setContentsMargins(0, 4, 0, 0);
+    seekRow->setSpacing(10);
+    
+    m_timeLbl = new QLabel("00:00", topPlayerBar);
+    m_timeLbl->setObjectName("topTime");
+    m_timeLbl->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+    m_timeLbl->setFixedWidth(42);
+    seekRow->addWidget(m_timeLbl);
+    
+    m_seekScale = new QSlider(Qt::Horizontal, topPlayerBar);
+    m_seekScale->setObjectName("topSeek");
+    m_seekScale->setRange(0, 1000);
+    connect(m_seekScale, &QSlider::sliderMoved, this, &MainWindow::onSeekChanged);
+    seekRow->addWidget(m_seekScale, 1);
+    
+    m_totalTimeLbl = new QLabel("00:00", topPlayerBar);
+    m_totalTimeLbl->setObjectName("topTotalTime");
+    m_totalTimeLbl->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+    m_totalTimeLbl->setFixedWidth(42);
+    seekRow->addWidget(m_totalTimeLbl);
+    
+    topBarLayout->addLayout(seekRow);
     mainLayout->addWidget(topPlayerBar);
     
     // -------------------------------------------------------------
@@ -376,7 +421,7 @@ void MainWindow::setupUI() {
     importGrid->addWidget(m_importSrcBtn, 0, 2);
     
     importGrid->addWidget(new QLabel("Import Destination:", importTab), 1, 0, Qt::AlignRight);
-    m_importDestLbl = new QLabel(m_config->import_dest_path ? m_config->import_dest_path : "Not configured", importTab);
+    m_importDestLbl = new QLabel(m_config->import_dest_path.empty() ? "Not configured" : QString::fromStdString(m_config->import_dest_path), importTab);
     importGrid->addWidget(m_importDestLbl, 1, 1, 1, 2);
     importLayout->addLayout(importGrid);
     
@@ -424,7 +469,7 @@ void MainWindow::setupUI() {
     
     settingsGrid->addWidget(new QLabel("Library Scan Folder:", settingsTab), 0, 0, Qt::AlignRight);
     m_settingsLibEdit = new QLineEdit(settingsTab);
-    m_settingsLibEdit->setText(m_config->library_path ? m_config->library_path : "");
+    m_settingsLibEdit->setText(QString::fromStdString(m_config->library_path));
     settingsGrid->addWidget(m_settingsLibEdit, 0, 1);
     m_settingsLibBtn = new QPushButton("Browse", settingsTab);
     connect(m_settingsLibBtn, &QPushButton::clicked, this, &MainWindow::onSettingsLibBrowse);
@@ -432,7 +477,7 @@ void MainWindow::setupUI() {
     
     settingsGrid->addWidget(new QLabel("Import Destination Folder:", settingsTab), 1, 0, Qt::AlignRight);
     m_settingsDestEdit = new QLineEdit(settingsTab);
-    m_settingsDestEdit->setText(m_config->import_dest_path ? m_config->import_dest_path : "");
+    m_settingsDestEdit->setText(QString::fromStdString(m_config->import_dest_path));
     settingsGrid->addWidget(m_settingsDestEdit, 1, 1);
     m_settingsDestBtn = new QPushButton("Browse", settingsTab);
     connect(m_settingsDestBtn, &QPushButton::clicked, this, &MainWindow::onSettingsDestBrowse);
@@ -513,7 +558,7 @@ void MainWindow::populateArtistList() {
     if (!m_library) return;
     m_artistList->blockSignals(true);
     m_artistList->clear();
-    QStringList artists = library_get_artists(m_library);
+    QStringList artists = library_get_artists(m_library.get());
     m_artistList->addItems(artists);
     m_artistList->blockSignals(false);
 }
@@ -528,7 +573,7 @@ void MainWindow::populateArtistAlbumGrid(const QString &artist) {
     }
     m_artistBackBtn->hide();
     
-    QList<Album*> albums = library_get_albums_by_artist(m_library, artist);
+    QList<Album*> albums = library_get_albums_by_artist(m_library.get(), artist);
     if (albums.isEmpty()) {
         QLabel *empty = new QLabel("No albums found for this artist.", m_artistContentPanel);
         empty->setObjectName("artistEmpty");
@@ -569,7 +614,7 @@ void MainWindow::populateArtistTrackList(Album *album) {
     
     m_artistBackBtn->show();
     
-    QLabel *albumTitle = new QLabel(QString::fromUtf8(album->name), m_artistContentPanel);
+    QLabel *albumTitle = new QLabel(QString::fromStdString(album->name), m_artistContentPanel);
     albumTitle->setObjectName("artistAlbumTitle");
     m_artistContentLayout->addWidget(albumTitle);
     
@@ -591,7 +636,7 @@ void MainWindow::populateArtistTrackList(Album *album) {
         int sec = (int)song->duration % 60;
         QString dur = QString("%1:%2").arg(min, 2, 10, QChar('0')).arg(sec, 2, 10, QChar('0'));
         
-        QString text = QString("  %1   %2   %3").arg(trackNo, -4).arg(QString::fromUtf8(song->title), -50).arg(dur);
+        QString text = QString("  %1   %2   %3").arg(trackNo, -4).arg(QString::fromStdString(song->title), -50).arg(dur);
         QListWidgetItem *item = new QListWidgetItem(text, trackList);
         item->setData(Qt::UserRole, QVariant::fromValue((void*)song));
     }
@@ -599,7 +644,7 @@ void MainWindow::populateArtistTrackList(Album *album) {
     connect(trackList, &QListWidget::itemDoubleClicked, this, [this](QListWidgetItem *item) {
         Song *song = (Song *)item->data(Qt::UserRole).value<void*>();
         if (song) {
-            Album *album = library_find_album(m_library, song->artist, song->album);
+            Album *album = library_find_album(m_library.get(), song->artist.c_str(), song->album.c_str());
             if (album) {
                 setupQueueForAlbum(album, song);
                 playSong(song);
@@ -651,7 +696,7 @@ void MainWindow::playSong(Song *song) {
         m_playStream = 0;
     }
 
-    m_playStream = BASS_StreamCreateFile(FALSE, song->filepath, 0, 0, 0);
+    m_playStream = BASS_StreamCreateFile(FALSE, song->filepath.c_str(), 0, 0, 0);
     if (!m_playStream && BASS_ErrorGetCode() == BASS_ERROR_INIT) {
         QMessageBox::critical(this, "Playback Error", "BASS not initialized. Check audio device.");
         return;
@@ -660,24 +705,20 @@ void MainWindow::playSong(Song *song) {
         BASS_ChannelSetAttribute(m_playStream, BASS_ATTRIB_VOL, m_isMuted ? 0.0 : m_config->volume);
         if (BASS_ChannelPlay(m_playStream, FALSE)) {
             m_isPlaying = true;
-            m_playPauseBtn->setIcon(QIcon::fromTheme("media-playback-pause"));
-            
-            // Show seek/time when playing
-            m_seekScale->show();
-            m_timeLbl->show();
+            m_playPauseBtn->setIcon(recolorIcon("media-playback-pause", QColor("#ffffff"), 24));
             
             // Set metadata labels
-            m_trackTitleLbl->setText(QString::fromUtf8(song->title));
-            m_trackArtistLbl->setText(QString::fromUtf8(song->artist));
+            m_trackTitleLbl->setText(QString::fromStdString(song->title));
+            m_trackArtistLbl->setText(QString::fromStdString(song->artist));
             
-            updateAlbumCover(QString::fromUtf8(song->filepath));
-            loadSongLyrics(QString::fromUtf8(song->filepath));
+            updateAlbumCover(QString::fromStdString(song->filepath));
+            loadSongLyrics(QString::fromStdString(song->filepath));
             
             // Refresh queue selection highlight
             refreshQueueList();
         }
     } else {
-        QMessageBox::critical(this, "Playback Error", "Failed to play: " + QString::fromUtf8(song->filepath));
+        QMessageBox::critical(this, "Playback Error", "Failed to play: " + QString::fromStdString(song->filepath));
     }
 }
 
@@ -686,11 +727,11 @@ void MainWindow::onPlayPauseClicked() {
         if (m_isPlaying) {
             BASS_ChannelPause(m_playStream);
             m_isPlaying = false;
-            m_playPauseBtn->setIcon(QIcon::fromTheme("media-playback-start"));
+            m_playPauseBtn->setIcon(recolorIcon("media-playback-start", QColor("#ffffff"), 24));
         } else {
             if (BASS_ChannelPlay(m_playStream, FALSE)) {
                 m_isPlaying = true;
-                m_playPauseBtn->setIcon(QIcon::fromTheme("media-playback-pause"));
+                m_playPauseBtn->setIcon(recolorIcon("media-playback-pause", QColor("#ffffff"), 24));
             }
         }
     } else if (!m_queue.isEmpty()) {
@@ -723,23 +764,23 @@ void MainWindow::onNextClicked() {
 
 void MainWindow::onShuffleToggled() {
     m_config->shuffle = m_shuffleBtn->isChecked();
-    config_save(m_config);
+    config_save(m_config.get());
 }
 
 void MainWindow::onRepeatToggled() {
     m_config->repeat_mode = m_repeatBtn->isChecked();
-    config_save(m_config);
+    config_save(m_config.get());
 }
 
 void MainWindow::onMuteClicked() {
     m_isMuted = !m_isMuted;
     if (m_isMuted) {
-        m_muteBtn->setIcon(QIcon::fromTheme("audio-volume-muted"));
+        m_muteBtn->setIcon(recolorIcon("audio-volume-muted", QColor("#6b7280")));
         if (m_playStream) {
             BASS_ChannelSetAttribute(m_playStream, BASS_ATTRIB_VOL, 0.0);
         }
     } else {
-        m_muteBtn->setIcon(QIcon::fromTheme("audio-volume-high"));
+        m_muteBtn->setIcon(recolorIcon("audio-volume-high", QColor("#6b7280")));
         if (m_playStream) {
             BASS_ChannelSetAttribute(m_playStream, BASS_ATTRIB_VOL, m_config->volume);
         }
@@ -748,7 +789,7 @@ void MainWindow::onMuteClicked() {
 
 void MainWindow::onVolumeChanged(int value) {
     m_config->volume = (double)value / 100.0;
-    config_save(m_config);
+    config_save(m_config.get());
     if (m_playStream && !m_isMuted) {
         BASS_ChannelSetAttribute(m_playStream, BASS_ATTRIB_VOL, m_config->volume);
     }
@@ -778,10 +819,8 @@ void MainWindow::onPositionTimer() {
     }
 
     if (!m_playStream) {
-        if (m_seekScale->isVisible()) {
-            m_seekScale->hide();
-            m_timeLbl->hide();
-        }
+        m_timeLbl->setText("00:00");
+        m_totalTimeLbl->setText("00:00");
         return;
     }
     
@@ -796,19 +835,16 @@ void MainWindow::onPositionTimer() {
             BASS_StreamFree(m_playStream);
             m_playStream = 0;
             m_isPlaying = false;
-            m_playPauseBtn->setIcon(QIcon::fromTheme("media-playback-start"));
-            m_seekScale->hide();
-            m_timeLbl->hide();
+            m_playPauseBtn->setIcon(recolorIcon("media-playback-start", QColor("#ffffff"), 24));
+            m_timeLbl->setText("00:00");
+            m_totalTimeLbl->setText("00:00");
+            m_seekScale->blockSignals(true);
+            m_seekScale->setValue(0);
+            m_seekScale->blockSignals(false);
         } else {
             onNextClicked();
         }
         return;
-    }
-    
-    // Ensure seek/time visible while playing
-    if (!m_seekScale->isVisible()) {
-        m_seekScale->show();
-        m_timeLbl->show();
     }
     
     // Update Slider
@@ -818,16 +854,17 @@ void MainWindow::onPositionTimer() {
         m_seekScale->blockSignals(false);
     }
     
-    // Update Time Label
+    // Update Time Labels
     int curMin = (int)secPos / 60;
     int curSec = (int)secPos % 60;
     int totMin = (int)secLen / 60;
     int totSec = (int)secLen % 60;
-    m_timeLbl->setText(QString("%1:%2 / %3:%4")
+    m_timeLbl->setText(QString("%1:%2")
                        .arg(curMin, 2, 10, QChar('0'))
-                       .arg(curSec, 2, 10, QChar('0'))
-                       .arg(totMin, 2, 10, QChar('0'))
-                       .arg(totSec, 2, 10, QChar('0')));
+                       .arg(curSec, 2, 10, QChar('0')));
+    m_totalTimeLbl->setText(QString("%1:%2")
+                            .arg(totMin, 2, 10, QChar('0'))
+                            .arg(totSec, 2, 10, QChar('0')));
                         
     // Update Lyrics highlight
     updateLyricsDisplay(secPos);
@@ -943,10 +980,7 @@ void MainWindow::loadSongLyrics(const QString &song_path) {
     m_lyricLabels.clear();
     m_activeLyricIndex = -1;
     
-    if (m_currentLyrics) {
-        lyrics_free(m_currentLyrics);
-        m_currentLyrics = nullptr;
-    }
+    m_currentLyrics.reset();
     
     if (song_path.isEmpty()) {
         QLabel *lbl = new QLabel("Lyrics Not Loaded", m_lyricsContainer);
@@ -959,7 +993,7 @@ void MainWindow::loadSongLyrics(const QString &song_path) {
     
     char *lrc_path = resolve_lyrics(song_path.toUtf8().constData());
     if (lrc_path && QFile::exists(lrc_path)) {
-        m_currentLyrics = lyrics_load(lrc_path);
+        m_currentLyrics.reset(lyrics_load(lrc_path));
     }
     free(lrc_path);
     
@@ -984,7 +1018,7 @@ void MainWindow::loadSongLyrics(const QString &song_path) {
 void MainWindow::updateLyricsDisplay(double position) {
     if (!m_currentLyrics || m_currentLyrics->lines.isEmpty() || m_lyricLabels.isEmpty()) return;
     
-    int index = lyrics_find_index(m_currentLyrics, position);
+    int index = lyrics_find_index(m_currentLyrics.get(), position);
     if (index == m_activeLyricIndex) return;
     
     // Reset old highlighted lyric
@@ -1053,10 +1087,7 @@ void MainWindow::onScanFinished(MusicLibrary *temp_lib) {
     m_scanThread->quit();
     m_scanThread->wait();
     
-    if (m_library) {
-        library_free(m_library);
-    }
-    m_library = temp_lib;
+    m_library.reset(temp_lib);
     
     refreshRecentAlbums();
     populateArtistList();
@@ -1099,13 +1130,10 @@ void MainWindow::onSettingsSave() {
         return;
     }
     
-    free(m_config->library_path);
-    m_config->library_path = strdup(lib.toUtf8().constData());
-
-    free(m_config->import_dest_path);
-    m_config->import_dest_path = strdup(dest.toUtf8().constData());
+    m_config->library_path = lib.toStdString();
+    m_config->import_dest_path = dest.toStdString();
     
-    config_save(m_config);
+    config_save(m_config.get());
     
     m_importDestLbl->setText(dest);
     
@@ -1131,7 +1159,7 @@ void MainWindow::onImportStart() {
         return;
     }
     
-    if (!m_config->import_dest_path || strlen(m_config->import_dest_path) == 0) {
+    if (m_config->import_dest_path.empty()) {
         QMessageBox::warning(this, "Settings Error", "Import Destination Folder is not set in Settings.");
         return;
     }
@@ -1151,7 +1179,7 @@ void MainWindow::onImportStart() {
     
     QStringList args;
     args << src;
-    args << QString::fromUtf8(m_config->import_dest_path);
+    args << QString::fromStdString(m_config->import_dest_path);
     args << (m_importDryRunChk->isChecked() ? "true" : "false");
     args << (m_importRemoveChk->isChecked() ? "true" : "false");
     args << (m_importSkipChk->isChecked() ? "true" : "false");
@@ -1181,8 +1209,8 @@ void MainWindow::onImportFinished(int exitCode, QProcess::ExitStatus exitStatus)
     m_importProcess = nullptr;
     
     // Rescan library
-    if (m_config->library_path && strlen(m_config->library_path) > 0) {
-        startAsyncScan(QString::fromUtf8(m_config->library_path));
+    if (!m_config->library_path.empty()) {
+        startAsyncScan(QString::fromStdString(m_config->library_path));
     }
 }
 
@@ -1313,7 +1341,7 @@ void MainWindow::refreshRecentAlbums() {
     
     // Fetch enough albums to populate the grid (limit = rows * 8 columns)
     int limit = num_rows * 8;
-    QList<Album*> recent = library_get_recent_albums(m_library, limit);
+    QList<Album*> recent = library_get_recent_albums(m_library.get(), limit);
     int i = 0;
     for (Album *album : recent) {
         AlbumCard *card = new AlbumCard(album, m_recentAlbumsWidget);
@@ -1365,9 +1393,9 @@ void MainWindow::onSearchTextChanged(const QString &text) {
     for (Album *album : m_library->albums) {
         for (Song *song : album->songs) {
             
-            QString title = QString::fromUtf8(song->title);
-            QString artist = QString::fromUtf8(song->artist);
-            QString albumName = QString::fromUtf8(song->album);
+            QString title = QString::fromStdString(song->title);
+            QString artist = QString::fromStdString(song->artist);
+            QString albumName = QString::fromStdString(song->album);
             
             if (title.contains(text, Qt::CaseInsensitive) ||
                 artist.contains(text, Qt::CaseInsensitive) ||
@@ -1402,7 +1430,7 @@ void MainWindow::onSearchResultActivated(const QModelIndex &index) {
     Song *song = (Song *)ptrItem->data().value<void*>();
     if (!song) return;
     
-    Album *album = library_find_album(m_library, song->artist, song->album);
+    Album *album = library_find_album(m_library.get(), song->artist.c_str(), song->album.c_str());
     if (album) {
         setupQueueForAlbum(album, song);
         playSong(song);
@@ -1414,7 +1442,7 @@ void MainWindow::onRecentAlbumClicked(Album *album) {
     
     m_tabs->setCurrentIndex(0);
     
-    QString artistName = QString::fromUtf8(album->artist);
+    QString artistName = QString::fromStdString(album->artist);
     m_artistList->blockSignals(true);
     QList<QListWidgetItem*> items = m_artistList->findItems(artistName, Qt::MatchExactly);
     if (!items.isEmpty()) {
