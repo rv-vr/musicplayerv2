@@ -1,0 +1,14 @@
+# Build & binary outputs
+build/
+dist/
+lib/
+*.so
+*.a
+*.o
+
+# Databases & logs
+*.db
+*.log
+
+# Graphify output folder
+graphify-out/
