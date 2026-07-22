@@ -386,20 +386,100 @@ static void scanFile(const ScanTask &task) {
     free(title);
 }
 
-void library_scan(MusicLibrary *lib, const QString &rootPath, QAtomicInt *scannedCounter) {
+void library_load_cached(MusicLibrary *lib) {
+    if (!lib) return;
+
+    qDeleteAll(lib->albums);
+    lib->albums.clear();
+    lib->albumMap.clear();
+
+    sqlite3 *db = dbInit();
+    if (!db) return;
+
+    sqlite3_stmt *stmt;
+    const char *query = "SELECT filepath, title, artist, album, duration, track_no, disc_no, album_artist "
+                        "FROM songs;";
+
+    if (sqlite3_prepare_v2(db, query, -1, &stmt, nullptr) == SQLITE_OK) {
+        while (sqlite3_step(stmt) == SQLITE_ROW) {
+            const char *fp = (const char *)sqlite3_column_text(stmt, 0);
+            const char *ti = (const char *)sqlite3_column_text(stmt, 1);
+            const char *ar = (const char *)sqlite3_column_text(stmt, 2);
+            const char *al = (const char *)sqlite3_column_text(stmt, 3);
+            double dur = sqlite3_column_double(stmt, 4);
+            int trk = sqlite3_column_int(stmt, 5);
+            int dsc = sqlite3_column_int(stmt, 6);
+            const char *aar = (const char *)sqlite3_column_text(stmt, 7);
+
+            if (!fp) continue;
+
+            const char *effArtist = (aar && strlen(aar) > 0) ? aar : (ar ? ar : "Unknown Artist");
+            const char *effAlbum = (al && strlen(al) > 0) ? al : "Unknown Album";
+            QString key = QString::fromUtf8(effArtist) + " - " + QString::fromUtf8(effAlbum);
+
+            Album *album = lib->albumMap.value(key, nullptr);
+            if (!album) {
+                album = new Album;
+                album->name = effAlbum;
+                album->artist = effArtist;
+
+                QFileInfo fi(fp);
+                QString parentDir = fi.absolutePath();
+                const char *coverNames[] = {
+                    "cover.jpg", "cover.png", "folder.jpg", "folder.png",
+                    "Cover.jpg", "Cover.png", "Folder.jpg", "Folder.png"
+                };
+                for (int i = 0; i < 8; i++) {
+                    QString covTest = parentDir + "/" + coverNames[i];
+                    if (QFile::exists(covTest)) {
+                        album->cover_path = covTest.toUtf8().constData();
+                        break;
+                    }
+                }
+
+                lib->albumMap.insert(key, album);
+                lib->albums.append(album);
+            }
+
+            Song *song = new Song;
+            song->filepath = fp;
+            song->title = ti ? ti : "";
+            song->artist = ar ? ar : "";
+            song->album = al ? al : "";
+            song->duration = dur;
+            song->track_no = trk;
+            song->disc_no = dsc;
+
+            album->songs.append(song);
+        }
+        sqlite3_finalize(stmt);
+    }
+    sqlite3_close(db);
+
+    std::sort(lib->albums.begin(), lib->albums.end(), albumLessThan);
+    for (Album *album : lib->albums) {
+        std::sort(album->songs.begin(), album->songs.end(), songLessThan);
+    }
+}
+
+void library_scan(MusicLibrary *lib, const QString &rootPath, QAtomicInt *scannedCounter, QAtomicInt *totalCounter) {
     qDeleteAll(lib->albums);
     lib->albums.clear();
     lib->albumMap.clear();
 
     if (rootPath.isEmpty() || !QDir(rootPath).exists()) return;
 
+    // Gather files (single pass)
+    QStringList files;
+    gatherFilesRecursive(rootPath, files);
+
+    if (totalCounter) {
+        totalCounter->storeRelaxed(files.size());
+    }
+
     // Init DB
     sqlite3 *db = dbInit();
     if (db) sqlite3_exec(db, "BEGIN TRANSACTION;", nullptr, nullptr, nullptr);
-
-    // Gather files
-    QStringList files;
-    gatherFilesRecursive(rootPath, files);
 
     // Process with thread pool
     ScanContext ctx;
