@@ -317,10 +317,10 @@ void MainWindow::setupUI() {
     
     m_albumCoverImg = new QLabel(leftSection);
     m_albumCoverImg->setObjectName("topAlbumCover");
-    m_albumCoverImg->setFixedSize(36, 36);
+    m_albumCoverImg->setFixedSize(40, 40);
     m_albumCoverImg->setAlignment(Qt::AlignCenter);
     
-    QPixmap fallback(36, 36);
+    QPixmap fallback(40, 40);
     fallback.fill(QColor("#e5e7eb"));
     m_albumCoverImg->setPixmap(fallback);
     leftLayout->addWidget(m_albumCoverImg);
@@ -1228,7 +1228,7 @@ void MainWindow::updateAmbientBackground(const QString &coverPath) {
 
 void MainWindow::updateAlbumCover(const QString &song_path) {
     if (song_path.isEmpty()) {
-        QPixmap fallback(48, 48);
+        QPixmap fallback(40, 40);
         fallback.fill(QColor("#27272a"));
         m_albumCoverImg->setPixmap(fallback);
         updateAmbientBackground(QString());
@@ -1239,10 +1239,10 @@ void MainWindow::updateAlbumCover(const QString &song_path) {
     if (cover_path && QFile::exists(cover_path)) {
         QString coverStr = QString::fromUtf8(cover_path);
         QPixmap pm(coverStr);
-        m_albumCoverImg->setPixmap(pm.scaled(48, 48, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+        m_albumCoverImg->setPixmap(pm.scaled(40, 40, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation));
         updateAmbientBackground(coverStr);
     } else {
-        QPixmap fallback(48, 48);
+        QPixmap fallback(40, 40);
         fallback.fill(QColor("#27272a"));
         m_albumCoverImg->setPixmap(fallback);
         updateAmbientBackground(QString());
