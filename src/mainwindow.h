@@ -3,6 +3,7 @@
 
 #include <QMainWindow>
 #include <QStandardItemModel>
+#include <memory>
 #include <QTimer>
 #include <QProcess>
 #include <QHBoxLayout>
@@ -122,12 +123,16 @@ private:
     bool m_isMuted;
     double m_savedVolume;
 
-    MusicLibrary *m_library;
-    PlayerConfig *m_config;
+    struct LibDeleter { void operator()(MusicLibrary *p) const { library_free(p); } };
+    struct ConfigDeleter { void operator()(PlayerConfig *p) const { config_free(p); } };
+    struct LyricsDeleter { void operator()(Lyrics *p) const { lyrics_free(p); } };
+
+    std::unique_ptr<MusicLibrary, LibDeleter> m_library;
+    std::unique_ptr<PlayerConfig, ConfigDeleter> m_config;
     QList<Song*> m_queue;
     int m_currentQueueIndex;
 
-    Lyrics *m_currentLyrics;
+    std::unique_ptr<Lyrics, LyricsDeleter> m_currentLyrics;
     int m_activeLyricIndex;
     QList<QLabel*> m_lyricLabels;
 
@@ -146,6 +151,7 @@ private:
     QLabel *m_trackArtistLbl;
     QSlider *m_seekScale;
     QLabel *m_timeLbl;
+    QLabel *m_totalTimeLbl;
     QPushButton *m_shuffleBtn;
     QPushButton *m_prevBtn;
     QPushButton *m_playPauseBtn;
