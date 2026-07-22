@@ -170,6 +170,8 @@ private:
     QScrollArea *m_lyricsScroll;
     QWidget *m_lyricsContainer;
     QLabel *m_pinnedActiveLyricLabel;
+    QLabel *m_ambientBackgroundLbl;
+    void updateAmbientBackground(const QString &coverPath);
 
     QLineEdit *m_importSrcEdit;
     QPushButton *m_importSrcBtn;
