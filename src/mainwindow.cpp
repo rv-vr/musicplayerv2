@@ -17,6 +17,8 @@
 #include <QListWidget>
 #include <QFrame>
 #include <QPainter>
+#include <QPropertyAnimation>
+#include <QEasingCurve>
 
 static QIcon recolorIcon(const QString &themeIcon, const QColor &color, int size = 28) {
     QPixmap base(size, size);
@@ -1039,18 +1041,27 @@ void MainWindow::updateLyricsDisplay(double position) {
     
     // Reset old highlighted lyric
     if (m_activeLyricIndex >= 0 && m_activeLyricIndex < m_lyricLabels.size()) {
-        m_lyricLabels.at(m_activeLyricIndex)->setStyleSheet("font-size: 16px; color: #9ca3af; padding: 10px 0; font-weight: 500;");
+        m_lyricLabels.at(m_activeLyricIndex)->setStyleSheet("font-size: 15px; color: #9ca3af; padding: 10px 0; font-weight: 500;");
     }
     
     m_activeLyricIndex = index;
     
-    // Highlight new active lyric
+    // Highlight new active lyric (Spotify style: 22px bold prominent blue)
     if (m_activeLyricIndex >= 0 && m_activeLyricIndex < m_lyricLabels.size()) {
         QLabel *activeLabel = m_lyricLabels.at(m_activeLyricIndex);
-        activeLabel->setStyleSheet("font-size: 20px; color: #3c7fb1; font-weight: 700; padding: 10px 0;");
+        activeLabel->setStyleSheet("font-size: 22px; color: #3c7fb1; font-weight: 800; padding: 12px 0;");
         
-        // Centered scroll
-        m_lyricsScroll->ensureWidgetVisible(activeLabel, 0, m_lyricsScroll->height() / 2);
+        // Spotify-style smooth scrolling animation (350ms OutCubic easing)
+        QScrollBar *vBar = m_lyricsScroll->verticalScrollBar();
+        int targetY = activeLabel->y() + (activeLabel->height() / 2) - (m_lyricsScroll->viewport()->height() / 2);
+        targetY = qBound(vBar->minimum(), targetY, vBar->maximum());
+
+        QPropertyAnimation *anim = new QPropertyAnimation(vBar, "value", m_lyricsScroll);
+        anim->setDuration(350);
+        anim->setStartValue(vBar->value());
+        anim->setEndValue(targetY);
+        anim->setEasingCurve(QEasingCurve::OutCubic);
+        anim->start(QAbstractAnimation::DeleteWhenStopped);
     }
 }
 
