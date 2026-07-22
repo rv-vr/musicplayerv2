@@ -113,8 +113,7 @@ void AlbumCard::mousePressEvent(QMouseEvent *event) {
 
 // Worker thread run implementation
 void ScanWorker::run() {
-    m_totalCounter->storeRelaxed(count_audio_files(m_path));
-    library_scan(m_lib, m_path, m_counter);
+    library_scan(m_lib, m_path, m_counter, m_totalCounter);
     emit finished(m_lib);
 }
 
@@ -159,18 +158,25 @@ MainWindow::MainWindow(QWidget *parent)
         }
     }
     
+    // Load cached DB upfront for instant startup (<2ms)
+    library_load_cached(m_library.get());
+
     // Setup UI
     setupUI();
     
     // Apply Stylesheet
     applyStyle();
+
+    // Populate UI from Cache Immediately
+    refreshRecentAlbums();
+    populateArtistList();
     
     // Position Update Timer
     m_positionTimer = new QTimer(this);
     connect(m_positionTimer, &QTimer::timeout, this, &MainWindow::onPositionTimer);
     m_positionTimer->start(100);
     
-    // Initial Scan
+    // Background Scan
     if (!m_config->library_path.empty()) {
         startAsyncScan(QString::fromStdString(m_config->library_path));
     }
