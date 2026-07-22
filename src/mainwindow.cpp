@@ -175,8 +175,24 @@ MainWindow::MainWindow(QWidget *parent)
     // Setup UI
     setupUI();
     
-    // Apply Stylesheet
+    // Apply Stylesheet & Setup Live QSS Hot Reloading
     applyStyle();
+    m_styleWatcher = new QFileSystemWatcher(this);
+    QStringList styleWatchPaths = {
+        QCoreApplication::applicationDirPath() + "/style.qss",
+        QCoreApplication::applicationDirPath() + "/../style.qss"
+    };
+    for (const QString &sp : styleWatchPaths) {
+        if (QFile::exists(sp)) {
+            m_styleWatcher->addPath(sp);
+        }
+    }
+    connect(m_styleWatcher, &QFileSystemWatcher::fileChanged, this, [this](const QString &path) {
+        applyStyle();
+        if (!m_styleWatcher->files().contains(path) && QFile::exists(path)) {
+            m_styleWatcher->addPath(path);
+        }
+    });
 
     // Populate UI from Cache Immediately
     refreshRecentAlbums();
@@ -417,7 +433,7 @@ void MainWindow::setupUI() {
     m_lyricsContainer = new QWidget(m_lyricsScroll);
     m_lyricsContainer->setStyleSheet("background-color: transparent;");
     QVBoxLayout *lyricsLayout = new QVBoxLayout(m_lyricsContainer);
-    lyricsLayout->setContentsMargins(20, 0, 20, 0);
+    lyricsLayout->setContentsMargins(96, 0, 96, 0);
     lyricsLayout->setSpacing(12);
     lyricsLayout->setAlignment(Qt::AlignTop | Qt::AlignHCenter);
     m_lyricsScroll->setWidget(m_lyricsContainer);
