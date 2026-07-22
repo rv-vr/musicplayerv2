@@ -417,7 +417,8 @@ void MainWindow::setupUI() {
     m_lyricsContainer = new QWidget(m_lyricsScroll);
     m_lyricsContainer->setStyleSheet("background-color: transparent;");
     QVBoxLayout *lyricsLayout = new QVBoxLayout(m_lyricsContainer);
-    lyricsLayout->setSpacing(4);
+    lyricsLayout->setContentsMargins(20, 180, 20, 180);
+    lyricsLayout->setSpacing(8);
     lyricsLayout->setAlignment(Qt::AlignTop | Qt::AlignHCenter);
     m_lyricsScroll->setWidget(m_lyricsContainer);
     m_tabs->addTab(m_lyricsScroll, "Lyrics");
