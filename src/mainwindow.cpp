@@ -449,26 +449,13 @@ void MainWindow::setupUI() {
     // TAB 3: LYRICS
     QWidget *lyricsTab = new QWidget(m_tabs);
     QVBoxLayout *lyricsTabLayout = new QVBoxLayout(lyricsTab);
-    lyricsTabLayout->setContentsMargins(15, 15, 15, 15);
-    lyricsTabLayout->setSpacing(10);
+    lyricsTabLayout->setContentsMargins(0, 0, 0, 0);
+    lyricsTabLayout->setSpacing(0);
 
-    // Fixed Pinned Glassmorphism Active Header
-    m_pinnedActiveLyricLabel = new QLabel("♪ Select a song to view lyrics", lyricsTab);
-    m_pinnedActiveLyricLabel->setAlignment(Qt::AlignCenter);
-    m_pinnedActiveLyricLabel->setWordWrap(true);
-    m_pinnedActiveLyricLabel->setStyleSheet(
-        "font-family: 'Inter', 'Noto Sans KR', 'NanumGothic', sans-serif; "
-        "font-size: 22px; font-weight: 700; color: #3c7fb1; "
-        "background-color: rgba(60, 127, 177, 0.15); "
-        "border: 1px solid rgba(60, 127, 177, 0.3); "
-        "border-radius: 10px; padding: 14px 20px;"
-    );
-    lyricsTabLayout->addWidget(m_pinnedActiveLyricLabel);
-
-    // Scrollable Full Lyrics View below Header
     m_lyricsScroll = new QScrollArea(lyricsTab);
     m_lyricsScroll->setWidgetResizable(true);
     m_lyricsScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    m_lyricsScroll->setStyleSheet("QScrollArea { border: none; background: transparent; }");
     m_lyricsContainer = new QWidget(m_lyricsScroll);
     m_lyricsContainer->setStyleSheet("background-color: transparent;");
     QVBoxLayout *lyricsLayout = new QVBoxLayout(m_lyricsContainer);
@@ -1274,13 +1261,6 @@ void MainWindow::loadSongLyrics(const QString &song_path) {
     }
     if (m_lyricsContainer) {
         m_lyricsContainer->adjustSize();
-       if (m_pinnedActiveLyricLabel) {
-        if (m_currentLyrics && !m_currentLyrics->lines.isEmpty()) {
-            m_pinnedActiveLyricLabel->setText(QString::fromUtf8(m_currentLyrics->lines.first().text));
-        } else {
-            m_pinnedActiveLyricLabel->setText("♪ Instrumental / No Lyrics Found");
-        }
-    }
     }
 
     m_lyricLineTargets.clear();
@@ -1299,19 +1279,14 @@ void MainWindow::updateLyricsDisplay(double position) {
     
     // Reset old highlighted lyric
     if (m_activeLyricIndex >= 0 && m_activeLyricIndex < m_lyricLabels.size()) {
-        m_lyricLabels.at(m_activeLyricIndex)->setStyleSheet("font-family: 'Inter', 'Noto Sans KR', 'NanumGothic', sans-serif; font-size: 16px; color: #9ca3af; padding: 12px 0; font-weight: 600;");
+        m_lyricLabels.at(m_activeLyricIndex)->setStyleSheet("font-family: 'Inter', 'Noto Sans KR', 'NanumGothic', sans-serif; font-size: 16px; color: #a1a1aa; padding: 12px 0; font-weight: 600;");
     }
     
     m_activeLyricIndex = index;
     
     if (m_activeLyricIndex >= 0 && m_activeLyricIndex < m_lyricLabels.size()) {
-        // Live update the fixed pinned top header label
-        if (m_pinnedActiveLyricLabel && m_currentLyrics && m_activeLyricIndex < m_currentLyrics->lines.size()) {
-            m_pinnedActiveLyricLabel->setText(QString::fromUtf8(m_currentLyrics->lines.at(m_activeLyricIndex).text));
-        }
-
         QLabel *activeLabel = m_lyricLabels.at(m_activeLyricIndex);
-        activeLabel->setStyleSheet("font-family: 'Inter', 'Noto Sans KR', 'NanumGothic', sans-serif; font-size: 18px; color: #3c7fb1; padding: 12px 0; font-weight: 700;");
+        activeLabel->setStyleSheet("font-family: 'Inter', 'Noto Sans KR', 'NanumGothic', sans-serif; font-size: 24px; color: #38bdf8; padding: 14px 0; font-weight: 700;");
         
         QScrollBar *vBar = m_lyricsScroll->verticalScrollBar();
         int viewportH = m_lyricsScroll->viewport()->height();
