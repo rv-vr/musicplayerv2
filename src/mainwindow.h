@@ -184,6 +184,8 @@ private:
     QScrollArea *m_lyricsScroll;
     QWidget *m_lyricsContainer;
     QWidget *m_topPlayerBar;
+    QWidget *m_subHeaderBar;
+    QWidget *m_nowPlayingLcd;
     QLabel *m_prevAmbientBackgroundLbl;
     QLabel *m_ambientBackgroundLbl;
     QGraphicsOpacityEffect *m_ambientOpacityEffect;
