@@ -28,6 +28,7 @@
 #include <QProgressBar>
 #include <QPlainTextEdit>
 #include <QListWidget>
+#include <QGroupBox>
 #include "discord_rpc.h"
 #include <atomic>
 #include <QFileSystemWatcher>
@@ -145,6 +146,7 @@ private slots:
     void onSettingsLibBrowse();
     void onSettingsDestBrowse();
     void onSettingsSave();
+    void onDiscordReconnectClicked();
 
     void onScanProgress(int scanned, int total);
     void onScanFinished(MusicLibrary *tempLib);
@@ -254,6 +256,11 @@ private:
     QLineEdit *m_settingsDestEdit;
     QPushButton *m_settingsDestBtn;
     QPushButton *m_settingsSaveBtn;
+
+    QLabel *m_discordStatusLbl;
+    QPushButton *m_discordReconnectBtn;
+    QPlainTextEdit *m_discordLogView;
+    void logDiscordRpc(const QString &msg);
 
     QLabel *m_statusLabel;
     QProgressBar *m_statusProgress;
