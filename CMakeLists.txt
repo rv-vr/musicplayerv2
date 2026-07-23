@@ -17,7 +17,7 @@ if(STATIC_QT)
     set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
 endif()
 
-find_package(Qt6 REQUIRED COMPONENTS Widgets)
+find_package(Qt6 REQUIRED COMPONENTS Widgets Network)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(SQLITE3 REQUIRED sqlite3)
 pkg_check_modules(TAGLIB REQUIRED taglib)
@@ -41,6 +41,7 @@ add_executable(musicplayer
 
 target_link_libraries(musicplayer PRIVATE
     Qt6::Widgets
+    Qt6::Network
     ${SQLITE3_LIBRARIES}
     ${TAGLIB_LIBRARIES}
     ${BASS_LIB}
