@@ -79,6 +79,41 @@ private:
     Album *m_album;
 };
 
+class LyricLineWidget : public QLabel {
+    Q_OBJECT
+    Q_PROPERTY(qreal highlightProgress READ highlightProgress WRITE setHighlightProgress)
+public:
+    explicit LyricLineWidget(const QString &text, QWidget *parent = nullptr)
+        : QLabel(text, parent), m_progress(0.0) {
+        setAlignment(Qt::AlignCenter);
+        setWordWrap(true);
+        setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+        updateStyle();
+    }
+
+    qreal highlightProgress() const { return m_progress; }
+    void setHighlightProgress(qreal p) {
+        m_progress = qBound(0.0, p, 1.0);
+        updateStyle();
+    }
+
+private:
+    void updateStyle() {
+        int fontSize = qRound(16.0 + m_progress * 20.0);
+        int r = qRound(161.0 + m_progress * (56.0 - 161.0));
+        int g = qRound(161.0 + m_progress * (189.0 - 161.0));
+        int b = qRound(170.0 + m_progress * (248.0 - 170.0));
+        int pad = qRound(8.0 + m_progress * 6.0);
+        int weight = m_progress > 0.5 ? 700 : 600;
+
+        setStyleSheet(QString("font-family: 'Inter', 'Noto Sans KR', 'NanumGothic', sans-serif; "
+                              "font-size: %1px; color: rgb(%2, %3, %4); padding: %5px 0; font-weight: %6;")
+                      .arg(fontSize).arg(r).arg(g).arg(b).arg(pad).arg(weight));
+    }
+
+    qreal m_progress;
+};
+
 class MainWindow : public QMainWindow {
     Q_OBJECT
 
@@ -151,7 +186,7 @@ private:
 
     std::unique_ptr<Lyrics, LyricsDeleter> m_currentLyrics;
     int m_activeLyricIndex;
-    QList<QLabel*> m_lyricLabels;
+    QList<LyricLineWidget*> m_lyricLabels;
 
     SmoothScrollFilter *m_smoothScrollFilter;
     QThread *m_scanThread;
