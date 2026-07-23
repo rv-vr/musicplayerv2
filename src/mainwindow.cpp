@@ -664,6 +664,30 @@ void MainWindow::setupUI() {
     settingsGrid->addWidget(m_settingsSaveBtn, 2, 1, Qt::AlignLeft);
     
     settingsLayout->addLayout(settingsGrid);
+
+    // Discord RPC Debug Log Section
+    QGroupBox *discordBox = new QGroupBox("Discord Rich Presence Status & Debug Log", settingsTab);
+    QVBoxLayout *discordBoxSubLayout = new QVBoxLayout(discordBox);
+    discordBoxSubLayout->setSpacing(8);
+
+    QHBoxLayout *discordHeaderLayout = new QHBoxLayout();
+    m_discordStatusLbl = new QLabel("🟡 Initializing Discord RPC...", discordBox);
+    m_discordStatusLbl->setStyleSheet("font-weight: 600; font-size: 13px;");
+    discordHeaderLayout->addWidget(m_discordStatusLbl);
+    discordHeaderLayout->addStretch();
+
+    m_discordReconnectBtn = new QPushButton("Reconnect Discord RPC", discordBox);
+    connect(m_discordReconnectBtn, &QPushButton::clicked, this, &MainWindow::onDiscordReconnectClicked);
+    discordHeaderLayout->addWidget(m_discordReconnectBtn);
+    discordBoxSubLayout->addLayout(discordHeaderLayout);
+
+    m_discordLogView = new QPlainTextEdit(discordBox);
+    m_discordLogView->setReadOnly(true);
+    m_discordLogView->setMaximumHeight(160);
+    m_discordLogView->setStyleSheet("font-family: 'Consolas', 'Courier New', monospace; font-size: 11px; background-color: #09090b; color: #a1a1aa; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 6px; padding: 6px;");
+    discordBoxSubLayout->addWidget(m_discordLogView);
+
+    settingsLayout->addWidget(discordBox);
     settingsLayout->addStretch();
     m_tabs->addTab(settingsTab, "Settings");
     
@@ -1941,10 +1965,67 @@ void MainWindow::onRecentAlbumClicked(Album *album) {
 // Discord Rich Presence Integration
 // -------------------------------------------------------------
 
+static MainWindow *s_mainWindowInstance = nullptr;
+
+void MainWindow::logDiscordRpc(const QString &msg) {
+    if (!m_discordLogView) return;
+    QString timeStr = QTime::currentTime().toString("hh:mm:ss");
+    m_discordLogView->appendPlainText(QString("[%1] %2").arg(timeStr).arg(msg));
+}
+
+void MainWindow::onDiscordReconnectClicked() {
+    logDiscordRpc("Reconnecting to Discord Rich Presence...");
+    shutdownDiscordRPC();
+    initDiscordRPC();
+    if (m_isPlaying && m_currentQueueIndex >= 0 && m_currentQueueIndex < m_queue.size()) {
+        updateDiscordRPC(m_queue.at(m_currentQueueIndex));
+    } else {
+        updateDiscordRPC(nullptr);
+    }
+}
+
 void MainWindow::initDiscordRPC() {
+    s_mainWindowInstance = this;
+    logDiscordRpc("Initializing Discord Rich Presence (Client ID: 1330000000000000000)...");
+    
     DiscordEventHandlers handlers;
     memset(&handlers, 0, sizeof(handlers));
-    // Registered Application ID for Music Player (or fallback)
+    handlers.ready = [](const DiscordUser *user) {
+        if (s_mainWindowInstance) {
+            QString msg = QString("Discord Connected: %1 (ID: %2)")
+                .arg(QString::fromUtf8(user->username))
+                .arg(QString::fromUtf8(user->userId));
+            QMetaObject::invokeMethod(s_mainWindowInstance, [=]() {
+                if (s_mainWindowInstance->m_discordStatusLbl) {
+                    s_mainWindowInstance->m_discordStatusLbl->setText("🟢 " + msg);
+                }
+                s_mainWindowInstance->logDiscordRpc(msg);
+            }, Qt::QueuedConnection);
+        }
+    };
+    handlers.disconnected = [](int errCode, const char *message) {
+        if (s_mainWindowInstance) {
+            QString msg = QString("Discord Disconnected (%1): %2").arg(errCode).arg(message ? message : "Disconnected");
+            QMetaObject::invokeMethod(s_mainWindowInstance, [=]() {
+                if (s_mainWindowInstance->m_discordStatusLbl) {
+                    s_mainWindowInstance->m_discordStatusLbl->setText("🔴 " + msg);
+                }
+                s_mainWindowInstance->logDiscordRpc(msg);
+            }, Qt::QueuedConnection);
+        }
+    };
+    handlers.errored = [](int errCode, const char *message) {
+        if (s_mainWindowInstance) {
+            QString msg = QString("Discord Error (%1): %2").arg(errCode).arg(message ? message : "Error");
+            QMetaObject::invokeMethod(s_mainWindowInstance, [=]() {
+                if (s_mainWindowInstance->m_discordStatusLbl) {
+                    s_mainWindowInstance->m_discordStatusLbl->setText("⚠️ " + msg);
+                }
+                s_mainWindowInstance->logDiscordRpc(msg);
+            }, Qt::QueuedConnection);
+        }
+    };
+
     Discord_Initialize("1330000000000000000", &handlers, 1, NULL);
     m_discordRpcActive = true;
 }
@@ -1964,6 +2045,7 @@ void MainWindow::updateDiscordRPC(Song *song) {
         discordPresence.smallImageText = "Playing";
         double secPos = m_playStream ? BASS_ChannelBytes2Seconds(m_playStream, BASS_ChannelGetPosition(m_playStream, BASS_POS_BYTE)) : 0.0;
         discordPresence.startTimestamp = time(NULL) - static_cast<int64_t>(secPos);
+        logDiscordRpc(QString("Presence updated: Playing \"%1\" by %2").arg(song->title.c_str()).arg(song->artist.c_str()));
     } else {
         discordPresence.details = "Idle";
         discordPresence.state = "Music Player v2";
@@ -1971,6 +2053,7 @@ void MainWindow::updateDiscordRPC(Song *song) {
         discordPresence.largeImageText = "Music Player v2";
         discordPresence.smallImageKey = "pause";
         discordPresence.smallImageText = "Paused";
+        logDiscordRpc("Presence updated: Idle");
     }
     
     Discord_UpdatePresence(&discordPresence);
@@ -1981,5 +2064,6 @@ void MainWindow::shutdownDiscordRPC() {
         Discord_ClearPresence();
         Discord_Shutdown();
         m_discordRpcActive = false;
+        logDiscordRpc("Discord Rich Presence shutdown.");
     }
 }
