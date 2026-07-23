@@ -1375,11 +1375,7 @@ void MainWindow::loadSongLyrics(const QString &song_path) {
     if (vbox) vbox->addSpacing(pad);
 
     if (song_path.isEmpty()) {
-        QLabel *lbl = new QLabel("Lyrics Not Loaded", m_lyricsContainer);
-        lbl->setAlignment(Qt::AlignCenter);
-        lbl->setWordWrap(true);
-        lbl->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
-        lbl->setStyleSheet("font-family: 'Inter', 'Noto Sans KR', 'NanumGothic', sans-serif; font-size: 16px; color: #9ca3af; font-weight: 600; padding: 12px 0;");
+        LyricLineWidget *lbl = new LyricLineWidget("Lyrics Not Loaded", m_lyricsContainer);
         if (vbox) vbox->addWidget(lbl);
         m_lyricLabels.append(lbl);
     } else {
@@ -1391,21 +1387,12 @@ void MainWindow::loadSongLyrics(const QString &song_path) {
         
         if (m_currentLyrics && !m_currentLyrics->lines.isEmpty()) {
             for (const LyricLine &line : m_currentLyrics->lines) {
-                QLabel *lbl = new QLabel(QString::fromUtf8(line.text), m_lyricsContainer);
-                lbl->setAlignment(Qt::AlignCenter);
-                lbl->setWordWrap(true);
-                lbl->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
-                lbl->setProperty("class", "lyric-line");
-                lbl->setStyleSheet("font-family: 'Inter', 'Noto Sans KR', 'NanumGothic', sans-serif; font-size: 16px; color: #9ca3af; padding: 12px 0; font-weight: 600;");
+                LyricLineWidget *lbl = new LyricLineWidget(QString::fromUtf8(line.text), m_lyricsContainer);
                 if (vbox) vbox->addWidget(lbl);
                 m_lyricLabels.append(lbl);
             }
         } else {
-            QLabel *lbl = new QLabel("Instrumental / No Lyrics Found", m_lyricsContainer);
-            lbl->setAlignment(Qt::AlignCenter);
-            lbl->setWordWrap(true);
-            lbl->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
-            lbl->setStyleSheet("font-family: 'Inter', 'Noto Sans KR', 'NanumGothic', sans-serif; font-size: 16px; color: #9ca3af; font-weight: 600; padding: 20px;");
+            LyricLineWidget *lbl = new LyricLineWidget("Instrumental / No Lyrics Found", m_lyricsContainer);
             if (vbox) vbox->addWidget(lbl);
             m_lyricLabels.append(lbl);
         }
@@ -1421,7 +1408,7 @@ void MainWindow::loadSongLyrics(const QString &song_path) {
 
     m_lyricLineTargets.clear();
     int viewportHalf = m_lyricsScroll->viewport()->height() > 0 ? m_lyricsScroll->viewport()->height() / 2 : 250;
-    for (QLabel *lbl : m_lyricLabels) {
+    for (LyricLineWidget *lbl : m_lyricLabels) {
         int targetY = lbl->y() + (lbl->height() / 2) - viewportHalf;
         m_lyricLineTargets.append(targetY);
     }
@@ -1433,28 +1420,40 @@ void MainWindow::updateLyricsDisplay(double position) {
     int index = lyrics_find_index(m_currentLyrics.get(), position);
     if (index == m_activeLyricIndex) return;
     
-    // Reset old highlighted lyric
+    // Animate old active line back to unhighlighted state
     if (m_activeLyricIndex >= 0 && m_activeLyricIndex < m_lyricLabels.size()) {
-        m_lyricLabels.at(m_activeLyricIndex)->setStyleSheet("font-family: 'Inter', 'Noto Sans KR', 'NanumGothic', sans-serif; font-size: 16px; color: #a1a1aa; padding: 12px 0; font-weight: 600;");
+        LyricLineWidget *prevLbl = m_lyricLabels.at(m_activeLyricIndex);
+        QPropertyAnimation *animOut = new QPropertyAnimation(prevLbl, "highlightProgress", prevLbl);
+        animOut->setDuration(300);
+        animOut->setStartValue(prevLbl->highlightProgress());
+        animOut->setEndValue(0.0);
+        animOut->setEasingCurve(QEasingCurve::OutCubic);
+        animOut->start(QAbstractAnimation::DeleteWhenStopped);
     }
     
     m_activeLyricIndex = index;
     
+    // Animate new active line to highlighted state
     if (m_activeLyricIndex >= 0 && m_activeLyricIndex < m_lyricLabels.size()) {
-        QLabel *activeLabel = m_lyricLabels.at(m_activeLyricIndex);
-        activeLabel->setStyleSheet("font-family: 'Inter', 'Noto Sans KR', 'NanumGothic', sans-serif; font-size: 48px; color: #38bdf8; padding: 14px 0; font-weight: 700;");
+        LyricLineWidget *currLbl = m_lyricLabels.at(m_activeLyricIndex);
+        QPropertyAnimation *animIn = new QPropertyAnimation(currLbl, "highlightProgress", currLbl);
+        animIn->setDuration(300);
+        animIn->setStartValue(currLbl->highlightProgress());
+        animIn->setEndValue(1.0);
+        animIn->setEasingCurve(QEasingCurve::OutCubic);
+        animIn->start(QAbstractAnimation::DeleteWhenStopped);
         
         QScrollBar *vBar = m_lyricsScroll->verticalScrollBar();
         int viewportH = m_lyricsScroll->viewport()->height();
-        int targetY = activeLabel->y() + (activeLabel->height() / 2) - (viewportH / 2);
+        int targetY = currLbl->y() + (currLbl->height() / 2) - (viewportH / 2);
         targetY = qBound(vBar->minimum(), targetY, vBar->maximum());
 
-        QPropertyAnimation *anim = new QPropertyAnimation(vBar, "value", m_lyricsScroll);
-        anim->setDuration(350);
-        anim->setStartValue(vBar->value());
-        anim->setEndValue(targetY);
-        anim->setEasingCurve(QEasingCurve::OutCubic);
-        anim->start(QAbstractAnimation::DeleteWhenStopped);
+        QPropertyAnimation *scrollAnim = new QPropertyAnimation(vBar, "value", m_lyricsScroll);
+        scrollAnim->setDuration(350);
+        scrollAnim->setStartValue(vBar->value());
+        scrollAnim->setEndValue(targetY);
+        scrollAnim->setEasingCurve(QEasingCurve::OutCubic);
+        scrollAnim->start(QAbstractAnimation::DeleteWhenStopped);
     }
 }
 
