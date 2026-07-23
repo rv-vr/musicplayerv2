@@ -12,14 +12,14 @@ QLabel {
 
 #topPlayerBar {
     background-color: rgba(18, 18, 21, 0.95);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     min-height: 56px;
     max-height: 60px;
 }
 
 #nowPlayingLcd {
     background-color: rgba(24, 24, 27, 0.90);
-    border: 1px solid rgba(255, 255, 255, 0.15);
+    border: none;
     border-radius: 8px;
     padding: 2px 8px;
 }
@@ -27,7 +27,7 @@ QLabel {
 #topAlbumCover {
     border-radius: 6px;
     background-color: #18181b;
-    border: 1px solid rgba(255, 255, 255, 0.12);
+    border: none;
 }
 #topTrackTitle {
     font-size: 12px;
@@ -137,7 +137,7 @@ QLabel {
 
 #topSearchEdit {
     background-color: rgba(24, 24, 27, 0.90);
-    border: 1px solid rgba(255, 255, 255, 0.15);
+    border: none;
     border-radius: 13px;
     padding: 4px 10px;
     color: #f4f4f5;
@@ -146,13 +146,13 @@ QLabel {
     max-width: 200px;
 }
 #topSearchEdit:focus {
-    border-color: #38bdf8;
+    border: 1px solid #38bdf8;
     outline: none;
 }
 
 #subHeaderBar {
     background-color: #121215;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     min-height: 36px;
     max-height: 36px;
 }
@@ -171,7 +171,7 @@ QLabel {
 
 #storeBtn {
     background-color: rgba(255, 255, 255, 0.08);
-    border: 1px solid rgba(255, 255, 255, 0.15);
+    border: none;
     border-radius: 6px;
     color: #f4f4f5;
     font-size: 11px;
@@ -198,11 +198,11 @@ QTabBar {
 QTabBar::tab {
     padding: 5px 16px;
     background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.12);
+    border: none;
     color: #a1a1aa;
     font-weight: 600;
     font-size: 12px;
-    margin-right: -1px;
+    margin-right: 2px;
 }
 QTabBar::tab:first {
     border-top-left-radius: 6px;
@@ -223,12 +223,11 @@ QTabBar::tab:selected {
     background-color: rgba(56, 189, 248, 0.20);
     color: #38bdf8;
     font-weight: 700;
-    border-color: rgba(56, 189, 248, 0.40);
 }
 
 #albumCard {
     background-color: rgba(24, 24, 27, 0.85);
-    border: 1px solid rgba(255, 255, 255, 0.10);
+    border: none;
     border-radius: 12px;
 }
 #albumCard:hover, #albumCard:focus {
@@ -240,7 +239,7 @@ QTabBar::tab:selected {
 #artistList {
     background-color: #09090b;
     border: none;
-    border-right: 1px solid rgba(255, 255, 255, 0.12);
+    border-right: 1px solid rgba(255, 255, 255, 0.08);
     font-size: 13px;
     font-weight: 500;
     padding: 4px;
@@ -287,7 +286,7 @@ QTabBar::tab:selected {
 
 #artistTrackList {
     background-color: rgba(18, 18, 21, 0.85);
-    border: 1px solid rgba(255, 255, 255, 0.12);
+    border: none;
     border-radius: 12px;
     font-size: 13px;
     font-family: monospace;
@@ -361,7 +360,7 @@ QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
 QPushButton {
     background-color: rgba(24, 24, 27, 0.85);
     color: #f4f4f5;
-    border: 1px solid rgba(255, 255, 255, 0.12);
+    border: none;
     border-radius: 8px;
     padding: 7px 14px;
     font-weight: 600;
@@ -369,7 +368,6 @@ QPushButton {
 }
 QPushButton:hover, QPushButton:focus {
     background-color: rgba(39, 39, 42, 0.95);
-    border-color: #38bdf8;
     outline: none;
 }
 QPushButton:pressed {
@@ -391,7 +389,7 @@ QPushButton:pressed {
 
 QTreeView {
     background-color: rgba(18, 18, 21, 0.85);
-    border: 1px solid rgba(255, 255, 255, 0.12);
+    border: none;
     border-radius: 12px;
     padding: 4px;
     alternate-background-color: rgba(24, 24, 27, 0.50);
@@ -414,7 +412,7 @@ QHeaderView::section {
     background-color: #121215;
     color: #a1a1aa;
     border: none;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     font-weight: 700;
     font-size: 12px;
     padding: 6px 8px;
@@ -422,7 +420,7 @@ QHeaderView::section {
 
 QLineEdit {
     background-color: rgba(18, 18, 21, 0.85);
-    border: 1px solid rgba(255, 255, 255, 0.12);
+    border: none;
     border-radius: 8px;
     padding: 8px 12px;
     color: #f4f4f5;
@@ -431,13 +429,13 @@ QLineEdit {
     selection-color: #09090b;
 }
 QLineEdit:focus {
-    border-color: #38bdf8;
+    border: 1px solid #38bdf8;
     outline: none;
 }
 
 QPlainTextEdit {
     background-color: rgba(18, 18, 21, 0.85);
-    border: 1px solid rgba(255, 255, 255, 0.12);
+    border: none;
     border-radius: 8px;
     color: #f4f4f5;
     font-size: 13px;
@@ -447,7 +445,7 @@ QPlainTextEdit {
 
 QStatusBar {
     background-color: #09090b;
-    border-top: 1px solid rgba(255, 255, 255, 0.12);
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 #statusLabel {
     font-size: 12px;
