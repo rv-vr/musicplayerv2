@@ -28,6 +28,7 @@
 #include <QProgressBar>
 #include <QPlainTextEdit>
 #include <QListWidget>
+#include "discord_rpc.h"
 #include <atomic>
 #include <QFileSystemWatcher>
 
@@ -187,6 +188,11 @@ private:
     std::unique_ptr<Lyrics, LyricsDeleter> m_currentLyrics;
     int m_activeLyricIndex;
     QList<LyricLineWidget*> m_lyricLabels;
+
+    bool m_discordRpcActive{false};
+    void initDiscordRPC();
+    void updateDiscordRPC(Song *song = nullptr);
+    void shutdownDiscordRPC();
 
     SmoothScrollFilter *m_smoothScrollFilter;
     QThread *m_scanThread;
