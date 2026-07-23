@@ -132,6 +132,8 @@ private:
     void playSong(Song *song);
     void refreshQueueList();
     void setupQueueForAlbum(Album *album, Song *start_song);
+    void updateRepeatButtonIcon();
+    void updateShuffleButtonIcon();
 
     HSTREAM m_playStream;
     bool m_isPlaying;
