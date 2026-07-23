@@ -20,6 +20,7 @@
 #include <QSlider>
 #include <QPushButton>
 #include <QTabWidget>
+#include <QTabBar>
 #include <QTreeView>
 #include <QScrollArea>
 #include <QLineEdit>
@@ -186,6 +187,7 @@ private:
     QWidget *m_topPlayerBar;
     QWidget *m_subHeaderBar;
     QWidget *m_nowPlayingLcd;
+    QTabBar *m_navTabBar;
     QLabel *m_prevAmbientBackgroundLbl;
     QLabel *m_ambientBackgroundLbl;
     QGraphicsOpacityEffect *m_ambientOpacityEffect;
