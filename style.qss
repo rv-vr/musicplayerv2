@@ -13,16 +13,24 @@ QLabel {
 #topPlayerBar {
     background-color: rgba(18, 18, 21, 0.95);
     border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-    min-height: 68px;
-    max-height: 74px;
+    min-height: 56px;
+    max-height: 60px;
 }
-#topAlbumCover {
+
+#nowPlayingLcd {
+    background-color: rgba(24, 24, 27, 0.90);
+    border: 1px solid rgba(255, 255, 255, 0.15);
     border-radius: 8px;
+    padding: 2px 8px;
+}
+
+#topAlbumCover {
+    border-radius: 6px;
     background-color: #18181b;
     border: 1px solid rgba(255, 255, 255, 0.12);
 }
 #topTrackTitle {
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 700;
     color: #f4f4f5;
 }
@@ -34,11 +42,11 @@ QLabel {
 [class="topBtn"] {
     background-color: transparent;
     border: none;
-    border-radius: 14px;
-    min-width: 28px;
-    min-height: 28px;
-    max-width: 28px;
-    max-height: 28px;
+    border-radius: 13px;
+    min-width: 26px;
+    min-height: 26px;
+    max-width: 26px;
+    max-height: 26px;
 }
 [class="topBtn"]:hover {
     background-color: rgba(255, 255, 255, 0.10);
@@ -57,11 +65,11 @@ QLabel {
 #topPlayBtn {
     background-color: #38bdf8;
     border: none;
-    border-radius: 16px;
-    min-width: 32px;
-    min-height: 32px;
-    max-width: 32px;
-    max-height: 32px;
+    border-radius: 15px;
+    min-width: 30px;
+    min-height: 30px;
+    max-width: 30px;
+    max-height: 30px;
 }
 #topPlayBtn:hover {
     background-color: #7dd3fc;
@@ -73,63 +81,110 @@ QLabel {
     background-color: #0284c7;
 }
 
-#topSeek::trough:horizontal {
+#topSeek::groove:horizontal {
     background-color: #27272a;
-    height: 4px;
-    border-radius: 2px;
+    height: 3px;
+    border-radius: 1px;
     border: none;
 }
 #topSeek::sub-page:horizontal {
     background-color: #38bdf8;
-    border-radius: 2px;
+    border-radius: 1px;
 }
 #topSeek::handle:horizontal {
     background-color: #38bdf8;
     border: none;
-    width: 12px;
-    height: 12px;
-    margin: -4px 0;
-    border-radius: 6px;
+    width: 9px;
+    height: 9px;
+    margin: -3px 0;
+    border-radius: 4px;
 }
 #topSeek::handle:horizontal:hover {
     background-color: #7dd3fc;
-    width: 14px;
-    height: 14px;
-    margin: -5px 0;
-    border-radius: 7px;
+    width: 11px;
+    height: 11px;
+    margin: -4px 0;
+    border-radius: 5px;
 }
 
-#topVolume::trough:horizontal {
+#topVolume::groove:horizontal {
     background-color: #27272a;
-    height: 4px;
-    border-radius: 2px;
+    height: 3px;
+    border-radius: 1px;
     border: none;
 }
 #topVolume::sub-page:horizontal {
     background-color: #a1a1aa;
-    border-radius: 2px;
+    border-radius: 1px;
 }
 #topVolume::handle:horizontal {
     background-color: #a1a1aa;
     border: none;
-    width: 10px;
-    height: 10px;
+    width: 9px;
+    height: 9px;
     margin: -3px 0;
-    border-radius: 5px;
+    border-radius: 4px;
 }
 #topVolume::handle:horizontal:hover {
     background-color: #e4e4e7;
 }
 
 #topTime, #topTotalTime {
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 500;
     color: #a1a1aa;
 }
 
-#mainTabs {
+#topSearchEdit {
+    background-color: rgba(24, 24, 27, 0.90);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 13px;
+    padding: 4px 10px;
+    color: #f4f4f5;
+    font-size: 12px;
+    min-width: 160px;
+    max-width: 200px;
+}
+#topSearchEdit:focus {
+    border-color: #38bdf8;
+    outline: none;
+}
+
+#subHeaderBar {
     background-color: #121215;
     border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+    min-height: 36px;
+    max-height: 36px;
+}
+
+#mediaTypeBtn {
+    background-color: transparent;
+    border: none;
+    color: #f4f4f5;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 4px 8px;
+}
+#mediaTypeBtn:hover {
+    color: #38bdf8;
+}
+
+#storeBtn {
+    background-color: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 6px;
+    color: #f4f4f5;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 12px;
+}
+#storeBtn:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+    color: #38bdf8;
+}
+
+#mainTabs {
+    background-color: transparent;
 }
 QTabWidget::pane {
     border: none;
@@ -137,29 +192,38 @@ QTabWidget::pane {
 }
 QTabBar {
     background-color: transparent;
-    padding: 0 12px;
+    padding: 4px 0;
     border: none;
 }
 QTabBar::tab {
-    padding: 8px 16px;
-    background: transparent;
+    padding: 5px 16px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.12);
     color: #a1a1aa;
     font-weight: 600;
-    font-size: 13px;
-    margin-right: 4px;
-    border-bottom: 2px solid transparent;
+    font-size: 12px;
+    margin-right: -1px;
+}
+QTabBar::tab:first {
+    border-top-left-radius: 6px;
+    border-bottom-left-radius: 6px;
+}
+QTabBar::tab:last {
+    border-top-right-radius: 6px;
+    border-bottom-right-radius: 6px;
 }
 QTabBar::tab:hover {
+    background-color: rgba(255, 255, 255, 0.12);
     color: #f4f4f5;
 }
 QTabBar::tab:focus {
     outline: none;
 }
 QTabBar::tab:selected {
-    background-color: transparent;
+    background-color: rgba(56, 189, 248, 0.20);
     color: #38bdf8;
     font-weight: 700;
-    border-bottom: 2px solid #38bdf8;
+    border-color: rgba(56, 189, 248, 0.40);
 }
 
 #albumCard {
