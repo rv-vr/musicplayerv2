@@ -39,46 +39,30 @@ QLabel {
     color: #a1a1aa;
 }
 
-[class="topBtn"] {
+[class="topBtn"], #topPlayBtn {
     background-color: transparent;
     border: none;
-    border-radius: 13px;
-    min-width: 26px;
-    min-height: 26px;
-    max-width: 26px;
-    max-height: 26px;
+    padding: 0;
+    margin: 0;
+    min-width: 24px;
+    min-height: 24px;
+    max-width: 24px;
+    max-height: 24px;
 }
-[class="topBtn"]:hover {
-    background-color: rgba(255, 255, 255, 0.10);
-}
-[class="topBtn"]:focus {
-    outline: 2px solid #38bdf8;
-}
-[class="topBtn"]:pressed {
-    background-color: rgba(255, 255, 255, 0.20);
-}
-[class="topBtn"]:checked {
+[class="topBtn"]:hover, #topPlayBtn:hover {
     background-color: transparent;
     border: none;
 }
-
-#topPlayBtn {
-    background-color: #38bdf8;
+[class="topBtn"]:focus, #topPlayBtn:focus {
+    outline: none;
+}
+[class="topBtn"]:pressed, #topPlayBtn:pressed {
+    background-color: transparent;
     border: none;
-    border-radius: 15px;
-    min-width: 30px;
-    min-height: 30px;
-    max-width: 30px;
-    max-height: 30px;
 }
-#topPlayBtn:hover {
-    background-color: #7dd3fc;
-}
-#topPlayBtn:focus {
-    outline: 2px solid #38bdf8;
-}
-#topPlayBtn:pressed {
-    background-color: #0284c7;
+[class="topBtn"]:checked, #topPlayBtn:checked {
+    background-color: transparent;
+    border: none;
 }
 
 #topSeek::groove:horizontal {
