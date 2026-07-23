@@ -29,6 +29,14 @@
 #include <QPlainTextEdit>
 #include <QListWidget>
 #include <QGroupBox>
+#include <QNetworkAccessManager>
+#include <QNetworkRequest>
+#include <QNetworkReply>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonArray>
+#include <QUrlQuery>
+#include <functional>
 #include "discord_rpc.h"
 #include <atomic>
 #include <QFileSystemWatcher>
@@ -192,9 +200,12 @@ private:
     QList<LyricLineWidget*> m_lyricLabels;
 
     bool m_discordRpcActive{false};
+    QNetworkAccessManager *m_netManager{nullptr};
+    QHash<QString, QString> m_albumArtUrlCache;
     void initDiscordRPC();
     void updateDiscordRPC(Song *song = nullptr);
     void shutdownDiscordRPC();
+    void fetchAlbumArtUrl(const QString &artist, const QString &album, std::function<void(const QString&)> callback);
 
     SmoothScrollFilter *m_smoothScrollFilter;
     QThread *m_scanThread;
