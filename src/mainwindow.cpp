@@ -470,7 +470,9 @@ void MainWindow::setupUI() {
 
     m_searchEdit = new QLineEdit(rightSection);
     m_searchEdit->setObjectName("topSearchEdit");
-    m_searchEdit->setPlaceholderText("🔍 Search Library");
+    m_searchEdit->setPlaceholderText("Search Library");
+    QAction *searchIconAct = m_searchEdit->addAction(recolorIcon("magnifying-glass.svg", QColor("#a1a1aa"), 14), QLineEdit::LeadingPosition);
+    Q_UNUSED(searchIconAct);
     connect(m_searchEdit, &QLineEdit::textChanged, this, &MainWindow::onSearchTextChanged);
     rightLayout->addWidget(m_searchEdit);
 
