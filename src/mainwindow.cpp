@@ -299,175 +299,201 @@ void MainWindow::setupUI() {
 
     updateAmbientBackground(QString());
     
-    QVBoxLayout *topBarLayout = new QVBoxLayout(m_topPlayerBar);
-    topBarLayout->setContentsMargins(16, 6, 16, 4);
-    topBarLayout->setSpacing(4);
+    QHBoxLayout *topBarLayout = new QHBoxLayout(m_topPlayerBar);
+    topBarLayout->setContentsMargins(16, 6, 16, 6);
+    topBarLayout->setSpacing(12);
     
-    // Top Row: [ Left: Cover + Title/Artist ]  [ Center: Playback Controls ]  [ Right: Volume ]
-    QHBoxLayout *topRow = new QHBoxLayout();
-    topRow->setContentsMargins(0, 0, 0, 0);
-    topRow->setSpacing(12);
-    
-    // --- LEFT SECTION: Cover + Info ---
+    QColor whiteIcon("#e4e4e7");
+    auto mkTopBtn = [&](const QString &iconName, bool chk) -> QPushButton* {
+        QPushButton *b = new QPushButton(m_topPlayerBar);
+        b->setProperty("class", "topBtn");
+        b->setCheckable(chk);
+        QIcon btnIcon;
+        btnIcon.addPixmap(recolorIcon(iconName, whiteIcon, 16).pixmap(16, 16), QIcon::Normal, QIcon::Off);
+        btnIcon.addPixmap(recolorIcon(iconName, QColor("#38bdf8"), 16).pixmap(16, 16), QIcon::Normal, QIcon::On);
+        b->setIcon(btnIcon);
+        b->setFixedSize(26, 26);
+        return b;
+    };
+
+    // --- LEFT SECTION: Playback Controls & Volume ---
     QWidget *leftSection = new QWidget(m_topPlayerBar);
     leftSection->setObjectName("topLeftSection");
     QHBoxLayout *leftLayout = new QHBoxLayout(leftSection);
     leftLayout->setContentsMargins(0, 0, 0, 0);
-    leftLayout->setSpacing(10);
-    
-    m_albumCoverImg = new QLabel(leftSection);
-    m_albumCoverImg->setObjectName("topAlbumCover");
-    m_albumCoverImg->setFixedSize(40, 40);
-    m_albumCoverImg->setAlignment(Qt::AlignCenter);
-    
-    QPixmap fallback(40, 40);
-    fallback.fill(QColor("#e5e7eb"));
-    m_albumCoverImg->setPixmap(fallback);
-    leftLayout->addWidget(m_albumCoverImg);
-    
-    QVBoxLayout *infoStack = new QVBoxLayout();
-    infoStack->setSpacing(1);
-    infoStack->setContentsMargins(0, 0, 0, 0);
-    infoStack->setAlignment(Qt::AlignVCenter);
-    
-    m_trackTitleLbl = new QLabel("Not Playing", leftSection);
-    m_trackTitleLbl->setObjectName("topTrackTitle");
-    infoStack->addWidget(m_trackTitleLbl);
-    
-    m_trackArtistLbl = new QLabel("Select a track to play", leftSection);
-    m_trackArtistLbl->setObjectName("topTrackArtist");
-    infoStack->addWidget(m_trackArtistLbl);
-    
-    leftLayout->addLayout(infoStack);
-    leftLayout->addStretch();
-    
-    topRow->addWidget(leftSection, 1);
-    
-    // --- CENTER SECTION: Playback Controls ---
-    QWidget *centerSection = new QWidget(m_topPlayerBar);
-    centerSection->setObjectName("topCenterSection");
-    QHBoxLayout *ctrlRow = new QHBoxLayout(centerSection);
-    ctrlRow->setContentsMargins(0, 0, 0, 0);
-    ctrlRow->setSpacing(8);
-    ctrlRow->setAlignment(Qt::AlignCenter);
-    
-    QColor whiteIcon("#e4e4e7");
-    
-    auto mkTopBtn = [&](const QString &iconName, bool chk) -> QPushButton* {
-        QPushButton *b = new QPushButton(centerSection);
-        b->setProperty("class", "topBtn");
-        b->setCheckable(chk);
-        QIcon btnIcon;
-        btnIcon.addPixmap(recolorIcon(iconName, whiteIcon, 18).pixmap(18, 18), QIcon::Normal, QIcon::Off);
-        btnIcon.addPixmap(recolorIcon(iconName, QColor("#38bdf8"), 18).pixmap(18, 18), QIcon::Normal, QIcon::On);
-        b->setIcon(btnIcon);
-        b->setFixedSize(28, 28);
-        return b;
-    };
-    
-    m_shuffleBtn = mkTopBtn("media-playlist-shuffle", true);
-    m_shuffleBtn->setToolTip("Shuffle Playback (Ctrl+S)");
-    m_shuffleBtn->setAccessibleName("Shuffle Playback");
-    m_shuffleBtn->setChecked(m_config->shuffle);
-    connect(m_shuffleBtn, &QPushButton::clicked, this, &MainWindow::onShuffleToggled);
-    ctrlRow->addWidget(m_shuffleBtn);
+    leftLayout->setSpacing(5);
     
     m_prevBtn = mkTopBtn("media-skip-backward", false);
     m_prevBtn->setToolTip("Previous Track (Alt+Left)");
     m_prevBtn->setAccessibleName("Previous Track");
     connect(m_prevBtn, &QPushButton::clicked, this, &MainWindow::onPrevClicked);
-    ctrlRow->addWidget(m_prevBtn);
+    leftLayout->addWidget(m_prevBtn);
     
-    m_playPauseBtn = new QPushButton(centerSection);
+    m_playPauseBtn = new QPushButton(leftSection);
     m_playPauseBtn->setObjectName("topPlayBtn");
     m_playPauseBtn->setToolTip("Play / Pause (Space)");
     m_playPauseBtn->setAccessibleName("Play or Pause Track");
-    m_playPauseBtn->setIcon(recolorIcon("media-playback-start", QColor("#09090b"), 18));
-    m_playPauseBtn->setFixedSize(32, 32);
+    m_playPauseBtn->setIcon(recolorIcon("media-playback-start", QColor("#09090b"), 16));
+    m_playPauseBtn->setFixedSize(30, 30);
     connect(m_playPauseBtn, &QPushButton::clicked, this, &MainWindow::onPlayPauseClicked);
-    ctrlRow->addWidget(m_playPauseBtn);
+    leftLayout->addWidget(m_playPauseBtn);
     
     m_nextBtn = mkTopBtn("media-skip-forward", false);
     m_nextBtn->setToolTip("Next Track (Alt+Right)");
     m_nextBtn->setAccessibleName("Next Track");
     connect(m_nextBtn, &QPushButton::clicked, this, &MainWindow::onNextClicked);
-    ctrlRow->addWidget(m_nextBtn);
+    leftLayout->addWidget(m_nextBtn);
+    
+    m_muteBtn = new QPushButton(leftSection);
+    m_muteBtn->setProperty("class", "topBtn");
+    m_muteBtn->setToolTip("Mute / Unmute Audio (M)");
+    m_muteBtn->setAccessibleName("Mute Audio");
+    m_muteBtn->setIcon(recolorIcon("audio-volume-high", QColor("#e4e4e7"), 16));
+    m_muteBtn->setFixedSize(26, 26);
+    connect(m_muteBtn, &QPushButton::clicked, this, &MainWindow::onMuteClicked);
+    leftLayout->addWidget(m_muteBtn);
+    
+    m_volumeScale = new QSlider(Qt::Horizontal, leftSection);
+    m_volumeScale->setObjectName("topVolume");
+    m_volumeScale->setRange(0, 100);
+    m_volumeScale->setValue(m_config->volume * 100);
+    m_volumeScale->setFixedWidth(75);
+    connect(m_volumeScale, &QSlider::valueChanged, this, &MainWindow::onVolumeChanged);
+    leftLayout->addWidget(m_volumeScale);
+
+    m_shuffleBtn = mkTopBtn("media-playlist-shuffle", true);
+    m_shuffleBtn->setToolTip("Shuffle Playback (Ctrl+S)");
+    m_shuffleBtn->setAccessibleName("Shuffle Playback");
+    m_shuffleBtn->setChecked(m_config->shuffle);
+    connect(m_shuffleBtn, &QPushButton::clicked, this, &MainWindow::onShuffleToggled);
+    leftLayout->addWidget(m_shuffleBtn);
     
     m_repeatBtn = mkTopBtn("media-playlist-repeat", true);
     m_repeatBtn->setToolTip("Repeat Track / All (Ctrl+R)");
     m_repeatBtn->setAccessibleName("Repeat Mode");
     m_repeatBtn->setChecked(m_config->repeat_mode);
     connect(m_repeatBtn, &QPushButton::clicked, this, &MainWindow::onRepeatToggled);
-    ctrlRow->addWidget(m_repeatBtn);
+    leftLayout->addWidget(m_repeatBtn);
+
+    topBarLayout->addWidget(leftSection, 0);
+
+    // --- CENTER SECTION: iTunes LCD Display Panel ---
+    m_nowPlayingLcd = new QWidget(m_topPlayerBar);
+    m_nowPlayingLcd->setObjectName("nowPlayingLcd");
+    QHBoxLayout *lcdLayout = new QHBoxLayout(m_nowPlayingLcd);
+    lcdLayout->setContentsMargins(6, 4, 6, 4);
+    lcdLayout->setSpacing(8);
+
+    m_albumCoverImg = new QLabel(m_nowPlayingLcd);
+    m_albumCoverImg->setObjectName("topAlbumCover");
+    m_albumCoverImg->setFixedSize(36, 36);
+    m_albumCoverImg->setAlignment(Qt::AlignCenter);
+    QPixmap fallback(36, 36);
+    fallback.fill(QColor("#e5e7eb"));
+    m_albumCoverImg->setPixmap(fallback);
+    lcdLayout->addWidget(m_albumCoverImg);
+
+    QVBoxLayout *lcdInfoStack = new QVBoxLayout();
+    lcdInfoStack->setSpacing(1);
+    lcdInfoStack->setContentsMargins(0, 0, 0, 0);
+
+    QHBoxLayout *textRow = new QHBoxLayout();
+    textRow->setContentsMargins(0, 0, 0, 0);
+    textRow->setSpacing(4);
     
-    topRow->addWidget(centerSection, 1);
-    
-    // --- RIGHT SECTION: Volume ---
-    QWidget *rightSection = new QWidget(m_topPlayerBar);
-    rightSection->setObjectName("topRightSection");
-    QHBoxLayout *rightLayout = new QHBoxLayout(rightSection);
-    rightLayout->setContentsMargins(0, 0, 0, 0);
-    rightLayout->setSpacing(8);
-    rightLayout->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
-    
-    m_muteBtn = new QPushButton(rightSection);
-    m_muteBtn->setProperty("class", "topBtn");
-    m_muteBtn->setToolTip("Mute / Unmute Audio (M)");
-    m_muteBtn->setAccessibleName("Mute Audio");
-    m_muteBtn->setIcon(recolorIcon("audio-volume-high", QColor("#e4e4e7"), 18));
-    m_muteBtn->setFixedSize(32, 32);
-    connect(m_muteBtn, &QPushButton::clicked, this, &MainWindow::onMuteClicked);
-    rightLayout->addWidget(m_muteBtn);
-    
-    m_volumeScale = new QSlider(Qt::Horizontal, rightSection);
-    m_volumeScale->setObjectName("topVolume");
-    m_volumeScale->setRange(0, 100);
-    m_volumeScale->setValue(m_config->volume * 100);
-    m_volumeScale->setFixedWidth(100);
-    connect(m_volumeScale, &QSlider::valueChanged, this, &MainWindow::onVolumeChanged);
-    rightLayout->addWidget(m_volumeScale);
-    
-    topRow->addWidget(rightSection, 1);
-    
-    topBarLayout->addLayout(topRow);
-    
-    // --- BOTTOM ROW: Seekbar + Time Displays ---
+    m_trackTitleLbl = new QLabel("Not Playing", m_nowPlayingLcd);
+    m_trackTitleLbl->setObjectName("topTrackTitle");
+    textRow->addWidget(m_trackTitleLbl);
+
+    QLabel *dashLbl = new QLabel("—", m_nowPlayingLcd);
+    dashLbl->setStyleSheet("color: #71717a; font-size: 11px;");
+    textRow->addWidget(dashLbl);
+
+    m_trackArtistLbl = new QLabel("Select a track to play", m_nowPlayingLcd);
+    m_trackArtistLbl->setObjectName("topTrackArtist");
+    textRow->addWidget(m_trackArtistLbl);
+    textRow->addStretch();
+    lcdInfoStack->addLayout(textRow);
+
     QHBoxLayout *seekRow = new QHBoxLayout();
-    seekRow->setContentsMargins(0, 4, 0, 0);
-    seekRow->setSpacing(10);
-    
-    m_timeLbl = new QLabel("00:00", m_topPlayerBar);
+    seekRow->setContentsMargins(0, 0, 0, 0);
+    seekRow->setSpacing(6);
+
+    m_timeLbl = new QLabel("00:00", m_nowPlayingLcd);
     m_timeLbl->setObjectName("topTime");
     m_timeLbl->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
-    m_timeLbl->setMinimumWidth(50);
+    m_timeLbl->setMinimumWidth(38);
     seekRow->addWidget(m_timeLbl);
-    
-    m_seekScale = new QSlider(Qt::Horizontal, m_topPlayerBar);
+
+    m_seekScale = new QSlider(Qt::Horizontal, m_nowPlayingLcd);
     m_seekScale->setObjectName("topSeek");
     m_seekScale->setRange(0, 1000);
     connect(m_seekScale, &QSlider::sliderMoved, this, &MainWindow::onSeekChanged);
     seekRow->addWidget(m_seekScale, 1);
-    
-    m_totalTimeLbl = new QLabel("00:00", m_topPlayerBar);
+
+    m_totalTimeLbl = new QLabel("00:00", m_nowPlayingLcd);
     m_totalTimeLbl->setObjectName("topTotalTime");
     m_totalTimeLbl->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
-    m_totalTimeLbl->setMinimumWidth(50);
+    m_totalTimeLbl->setMinimumWidth(38);
     seekRow->addWidget(m_totalTimeLbl);
-    
-    topBarLayout->addLayout(seekRow);
+
+    lcdInfoStack->addLayout(seekRow);
+    lcdLayout->addLayout(lcdInfoStack, 1);
+
+    topBarLayout->addWidget(m_nowPlayingLcd, 1);
+
+    // --- RIGHT SECTION: Search Bar ---
+    QWidget *rightSection = new QWidget(m_topPlayerBar);
+    rightSection->setObjectName("topRightSection");
+    QHBoxLayout *rightLayout = new QHBoxLayout(rightSection);
+    rightLayout->setContentsMargins(0, 0, 0, 0);
+    rightLayout->setSpacing(0);
+    rightLayout->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+
+    m_searchEdit = new QLineEdit(rightSection);
+    m_searchEdit->setObjectName("topSearchEdit");
+    m_searchEdit->setPlaceholderText("🔍 Search Library");
+    connect(m_searchEdit, &QLineEdit::textChanged, this, &MainWindow::onSearchTextChanged);
+    rightLayout->addWidget(m_searchEdit);
+
+    topBarLayout->addWidget(rightSection, 0);
     mainLayout->addWidget(m_topPlayerBar);
-    
+
     // -------------------------------------------------------------
     // TAB WIDGET
     // -------------------------------------------------------------
     m_tabs = new QTabWidget(m_centralWidget);
     m_tabs->setObjectName("mainTabs");
+
+    // -------------------------------------------------------------
+    // SUB-HEADER BAR (iTunes 11 Category & Store Bar)
+    // -------------------------------------------------------------
+    m_subHeaderBar = new QWidget(m_centralWidget);
+    m_subHeaderBar->setObjectName("subHeaderBar");
+    QHBoxLayout *subHeaderLayout = new QHBoxLayout(m_subHeaderBar);
+    subHeaderLayout->setContentsMargins(14, 0, 14, 0);
+    subHeaderLayout->setSpacing(10);
+
+    QPushButton *mediaTypeBtn = new QPushButton("🎵  Music  ▾", m_subHeaderBar);
+    mediaTypeBtn->setObjectName("mediaTypeBtn");
+    subHeaderLayout->addWidget(mediaTypeBtn);
+
+    subHeaderLayout->addStretch();
+    subHeaderLayout->addWidget(m_tabs->tabBar());
+    subHeaderLayout->addStretch();
+
+    QPushButton *storeBtn = new QPushButton("iTunes Store", m_subHeaderBar);
+    storeBtn->setObjectName("storeBtn");
+    subHeaderLayout->addWidget(storeBtn);
+
+    mainLayout->addWidget(m_subHeaderBar);
+    mainLayout->addWidget(m_tabs, 1);
     
-    // TAB 0: Artists
-    setupArtistsTab();
-    
-    // TAB 1: Home
+    // TAB 0: Home
     setupHomeTab();
+
+    // TAB 1: Artists
+    setupArtistsTab();
     
     // TAB 2: QUEUE
     QWidget *queueTab = new QWidget(m_tabs);
@@ -1595,24 +1621,6 @@ void MainWindow::setupHomeTab() {
     homeLayout->setContentsMargins(16, 16, 16, 16);
     homeLayout->setSpacing(12);
     
-    // Search edit
-    m_searchEdit = new QLineEdit(homeTab);
-    m_searchEdit->setPlaceholderText("🔍 Search songs, artists, or albums...");
-    m_searchEdit->setStyleSheet(
-        "QLineEdit {"
-        "    background-color: rgba(18, 18, 21, 0.85);"
-        "    border: 1px solid rgba(255, 255, 255, 0.10);"
-        "    border-radius: 10px;"
-        "    padding: 10px 14px;"
-        "    color: #e4e4e7;"
-        "    font-size: 14px;"
-        "}"
-        "QLineEdit:focus {"
-        "    border: 1px solid #38bdf8;"
-        "}"
-    );
-    homeLayout->addWidget(m_searchEdit);
-    
     // Recently Added container
     m_recentAlbumsWidget = new QWidget(homeTab);
     QVBoxLayout *recentLayout = new QVBoxLayout(m_recentAlbumsWidget);
@@ -1671,8 +1679,6 @@ void MainWindow::setupHomeTab() {
     homeLayout->addWidget(m_searchResultsTreeView);
     
     m_tabs->addTab(homeTab, "Home");
-    
-    connect(m_searchEdit, &QLineEdit::textChanged, this, &MainWindow::onSearchTextChanged);
     connect(m_searchResultsTreeView, &QTreeView::doubleClicked, this, &MainWindow::onSearchResultActivated);
 }
 
@@ -1760,6 +1766,10 @@ void MainWindow::onSearchTextChanged(const QString &text) {
         m_searchResultsTreeView->hide();
         m_recentAlbumsWidget->show();
         return;
+    }
+    
+    if (m_tabs && m_tabs->currentIndex() != 0) {
+        m_tabs->setCurrentIndex(0);
     }
     
     m_recentAlbumsWidget->hide();
