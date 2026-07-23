@@ -464,6 +464,7 @@ void MainWindow::setupUI() {
     // -------------------------------------------------------------
     m_tabs = new QTabWidget(m_centralWidget);
     m_tabs->setObjectName("mainTabs");
+    m_tabs->tabBar()->hide();
 
     // -------------------------------------------------------------
     // SUB-HEADER BAR (iTunes 11 Category & Store Bar)
@@ -478,8 +479,20 @@ void MainWindow::setupUI() {
     mediaTypeBtn->setObjectName("mediaTypeBtn");
     subHeaderLayout->addWidget(mediaTypeBtn);
 
+    m_navTabBar = new QTabBar(m_subHeaderBar);
+    m_navTabBar->setObjectName("navTabBar");
+    m_navTabBar->addTab("Home");
+    m_navTabBar->addTab("Artists");
+    m_navTabBar->addTab("Play Queue");
+    m_navTabBar->addTab("Lyrics");
+    m_navTabBar->addTab("Import & Clean");
+    m_navTabBar->addTab("Settings");
+
+    connect(m_navTabBar, &QTabBar::currentChanged, m_tabs, &QTabWidget::setCurrentIndex);
+    connect(m_tabs, &QTabWidget::currentChanged, m_navTabBar, &QTabBar::setCurrentIndex);
+
     subHeaderLayout->addStretch();
-    subHeaderLayout->addWidget(m_tabs->tabBar());
+    subHeaderLayout->addWidget(m_navTabBar);
     subHeaderLayout->addStretch();
 
     QPushButton *storeBtn = new QPushButton("iTunes Store", m_subHeaderBar);
