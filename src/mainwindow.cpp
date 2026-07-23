@@ -351,8 +351,8 @@ void MainWindow::setupUI() {
     m_playPauseBtn->setObjectName("topPlayBtn");
     m_playPauseBtn->setToolTip("Play / Pause (Space)");
     m_playPauseBtn->setAccessibleName("Play or Pause Track");
-    m_playPauseBtn->setIcon(recolorIcon("media-playback-start", QColor("#09090b"), 16));
-    m_playPauseBtn->setFixedSize(30, 30);
+    m_playPauseBtn->setIcon(recolorIcon("media-playback-start", QColor("#e4e4e7"), 18));
+    m_playPauseBtn->setFixedSize(26, 26);
     connect(m_playPauseBtn, &QPushButton::clicked, this, &MainWindow::onPlayPauseClicked);
     leftLayout->addWidget(m_playPauseBtn);
     
@@ -882,7 +882,7 @@ void MainWindow::playSong(Song *song) {
         BASS_ChannelSetAttribute(m_playStream, BASS_ATTRIB_VOL, m_isMuted ? 0.0 : m_config->volume);
         if (BASS_ChannelPlay(m_playStream, FALSE)) {
             m_isPlaying = true;
-            m_playPauseBtn->setIcon(recolorIcon("media-playback-pause", QColor("#09090b"), 24));
+            m_playPauseBtn->setIcon(recolorIcon("media-playback-pause", QColor("#38bdf8"), 18));
             
             // Set metadata labels
             m_trackTitleLbl->setText(QString::fromStdString(song->title));
@@ -904,11 +904,11 @@ void MainWindow::onPlayPauseClicked() {
         if (m_isPlaying) {
             BASS_ChannelPause(m_playStream);
             m_isPlaying = false;
-            m_playPauseBtn->setIcon(recolorIcon("media-playback-start", QColor("#09090b"), 24));
+            m_playPauseBtn->setIcon(recolorIcon("media-playback-start", QColor("#e4e4e7"), 18));
         } else {
             if (BASS_ChannelPlay(m_playStream, FALSE)) {
                 m_isPlaying = true;
-                m_playPauseBtn->setIcon(recolorIcon("media-playback-pause", QColor("#09090b"), 24));
+                m_playPauseBtn->setIcon(recolorIcon("media-playback-pause", QColor("#38bdf8"), 18));
             }
         }
     } else if (!m_queue.isEmpty()) {
@@ -991,12 +991,12 @@ void MainWindow::onRepeatToggled() {
 void MainWindow::onMuteClicked() {
     m_isMuted = !m_isMuted;
     if (m_isMuted) {
-        m_muteBtn->setIcon(recolorIcon("audio-volume-muted", QColor("#e4e4e7")));
+        m_muteBtn->setIcon(recolorIcon("audio-volume-muted", QColor("#38bdf8"), 16));
         if (m_playStream) {
             BASS_ChannelSetAttribute(m_playStream, BASS_ATTRIB_VOL, 0.0);
         }
     } else {
-        m_muteBtn->setIcon(recolorIcon("audio-volume-high", QColor("#e4e4e7")));
+        m_muteBtn->setIcon(recolorIcon("audio-volume-high", QColor("#e4e4e7"), 16));
         if (m_playStream) {
             BASS_ChannelSetAttribute(m_playStream, BASS_ATTRIB_VOL, m_config->volume);
         }
@@ -1056,7 +1056,7 @@ void MainWindow::onPositionTimer() {
             BASS_StreamFree(m_playStream);
             m_playStream = 0;
             m_isPlaying = false;
-            m_playPauseBtn->setIcon(recolorIcon("media-playback-start", QColor("#09090b"), 24));
+            m_playPauseBtn->setIcon(recolorIcon("media-playback-start", QColor("#e4e4e7"), 18));
             m_timeLbl->setText("00:00");
             m_totalTimeLbl->setText("00:00");
             m_seekScale->blockSignals(true);
