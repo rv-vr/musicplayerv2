@@ -2039,9 +2039,9 @@ void MainWindow::updateDiscordRPC(Song *song) {
     if (song && m_isPlaying) {
         discordPresence.details = song->title.c_str();
         discordPresence.state = song->artist.c_str();
-        discordPresence.largeImageKey = "app_logo";
+        discordPresence.largeImageKey = NULL;
         discordPresence.largeImageText = song->album.empty() ? "Music Player" : song->album.c_str();
-        discordPresence.smallImageKey = "play";
+        discordPresence.smallImageKey = NULL;
         discordPresence.smallImageText = "Playing";
         double secPos = m_playStream ? BASS_ChannelBytes2Seconds(m_playStream, BASS_ChannelGetPosition(m_playStream, BASS_POS_BYTE)) : 0.0;
         discordPresence.startTimestamp = time(NULL) - static_cast<int64_t>(secPos);
@@ -2049,9 +2049,9 @@ void MainWindow::updateDiscordRPC(Song *song) {
     } else {
         discordPresence.details = "Idle";
         discordPresence.state = "Music Player v2";
-        discordPresence.largeImageKey = "app_logo";
+        discordPresence.largeImageKey = NULL;
         discordPresence.largeImageText = "Music Player v2";
-        discordPresence.smallImageKey = "pause";
+        discordPresence.smallImageKey = NULL;
         discordPresence.smallImageText = "Paused";
         logDiscordRpc("Presence updated: Idle");
     }
