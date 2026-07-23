@@ -23,11 +23,29 @@
 #include <QPropertyAnimation>
 #include <QEasingCurve>
 
-static QIcon recolorIcon(const QString &themeIcon, const QColor &color, int size = 28) {
+static QString resolveSvgPath(const QString &fileName) {
+    if (QFile::exists(fileName)) return fileName;
+    QString appPath = QCoreApplication::applicationDirPath() + "/" + fileName;
+    if (QFile::exists(appPath)) return appPath;
+    QString srcPath = QCoreApplication::applicationDirPath() + "/../" + fileName;
+    if (QFile::exists(srcPath)) return srcPath;
+    return fileName;
+}
+
+static QIcon recolorIcon(const QString &iconSource, const QColor &color, int size = 28) {
     QPixmap base(size, size);
     base.fill(Qt::transparent);
     QPainter p(&base);
-    QIcon::fromTheme(themeIcon).paint(&p, QRect(0, 0, size, size));
+    
+    QString resolved = resolveSvgPath(iconSource);
+    QIcon icon;
+    if (QFile::exists(resolved)) {
+        icon = QIcon(resolved);
+    } else {
+        icon = QIcon::fromTheme(iconSource);
+    }
+    
+    icon.paint(&p, QRect(0, 0, size, size));
     p.setCompositionMode(QPainter::CompositionMode_SourceIn);
     p.fillRect(base.rect(), color);
     p.end();
@@ -361,18 +379,18 @@ void MainWindow::setupUI() {
     connect(m_volumeScale, &QSlider::valueChanged, this, &MainWindow::onVolumeChanged);
     leftLayout->addWidget(m_volumeScale);
 
-    m_shuffleBtn = mkTopBtn("media-playlist-shuffle", true);
-    m_shuffleBtn->setToolTip("Shuffle Playback (Ctrl+S)");
+    m_shuffleBtn = new QPushButton(m_topPlayerBar);
+    m_shuffleBtn->setProperty("class", "topBtn");
     m_shuffleBtn->setAccessibleName("Shuffle Playback");
-    m_shuffleBtn->setChecked(m_config->shuffle);
     connect(m_shuffleBtn, &QPushButton::clicked, this, &MainWindow::onShuffleToggled);
+    updateShuffleButtonIcon();
     leftLayout->addWidget(m_shuffleBtn);
     
-    m_repeatBtn = mkTopBtn("media-playlist-repeat", true);
-    m_repeatBtn->setToolTip("Repeat Track / All (Ctrl+R)");
+    m_repeatBtn = new QPushButton(m_topPlayerBar);
+    m_repeatBtn->setProperty("class", "topBtn");
     m_repeatBtn->setAccessibleName("Repeat Mode");
-    m_repeatBtn->setChecked(m_config->repeat_mode);
     connect(m_repeatBtn, &QPushButton::clicked, this, &MainWindow::onRepeatToggled);
+    updateRepeatButtonIcon();
     leftLayout->addWidget(m_repeatBtn);
 
     topBarLayout->addWidget(leftSection, 0);
@@ -910,24 +928,63 @@ void MainWindow::onPrevClicked() {
     playSong(m_queue.at(m_currentQueueIndex));
 }
 
+void MainWindow::updateShuffleButtonIcon() {
+    if (!m_shuffleBtn) return;
+    bool shuf = m_config->shuffle;
+    QIcon icon = recolorIcon("shuffle.svg", shuf ? QColor("#38bdf8") : QColor("#e4e4e7"), 16);
+    m_shuffleBtn->setIcon(icon);
+    m_shuffleBtn->setToolTip(shuf ? "Shuffle: On (Ctrl+S)" : "Shuffle: Off (Ctrl+S)");
+}
+
+void MainWindow::updateRepeatButtonIcon() {
+    if (!m_repeatBtn) return;
+    int mode = m_config->repeat_mode; // 0 = Off, 1 = Repeat All, 2 = Repeat One
+    QIcon icon;
+    if (mode == 0) {
+        icon = recolorIcon("repeat-fill.svg", QColor("#e4e4e7"), 16);
+        m_repeatBtn->setToolTip("Repeat: Off (Ctrl+R)");
+    } else if (mode == 1) {
+        icon = recolorIcon("repeat-fill.svg", QColor("#38bdf8"), 16);
+        m_repeatBtn->setToolTip("Repeat: All (Ctrl+R)");
+    } else {
+        icon = recolorIcon("repeat-once.svg", QColor("#38bdf8"), 16);
+        m_repeatBtn->setToolTip("Repeat: One (Ctrl+R)");
+    }
+    m_repeatBtn->setIcon(icon);
+}
+
 void MainWindow::onNextClicked() {
     if (m_queue.isEmpty()) return;
+    if (m_currentQueueIndex < 0 || m_currentQueueIndex >= m_queue.size()) {
+        m_currentQueueIndex = 0;
+    }
     
-    m_currentQueueIndex++;
-    if (m_currentQueueIndex >= m_queue.size()) {
-        m_currentQueueIndex = m_config->repeat_mode ? 0 : (m_queue.size() - 1);
+    if (m_config->repeat_mode == 2) { // Repeat One
+        playSong(m_queue.at(m_currentQueueIndex));
+        return;
+    }
+    
+    if (m_config->shuffle) {
+        m_currentQueueIndex = QRandomGenerator::global()->bounded(m_queue.size());
+    } else {
+        m_currentQueueIndex++;
+        if (m_currentQueueIndex >= m_queue.size()) {
+            m_currentQueueIndex = m_config->repeat_mode ? 0 : (m_queue.size() - 1);
+        }
     }
     
     playSong(m_queue.at(m_currentQueueIndex));
 }
 
 void MainWindow::onShuffleToggled() {
-    m_config->shuffle = m_shuffleBtn->isChecked();
+    m_config->shuffle = !m_config->shuffle;
+    updateShuffleButtonIcon();
     config_save(m_config.get());
 }
 
 void MainWindow::onRepeatToggled() {
-    m_config->repeat_mode = m_repeatBtn->isChecked();
+    m_config->repeat_mode = (m_config->repeat_mode + 1) % 3;
+    updateRepeatButtonIcon();
     config_save(m_config.get());
 }
 
@@ -990,7 +1047,12 @@ void MainWindow::onPositionTimer() {
     double secLen = BASS_ChannelBytes2Seconds(m_playStream, len);
     
     if (secPos >= secLen && secLen > 0.0) {
-        if (m_currentQueueIndex + 1 >= m_queue.size() && !m_config->repeat_mode) {
+        if (m_config->repeat_mode == 2 && !m_queue.isEmpty()) {
+            if (m_currentQueueIndex < 0 || m_currentQueueIndex >= m_queue.size()) {
+                m_currentQueueIndex = 0;
+            }
+            playSong(m_queue.at(m_currentQueueIndex));
+        } else if (m_currentQueueIndex + 1 >= m_queue.size() && !m_config->repeat_mode) {
             BASS_StreamFree(m_playStream);
             m_playStream = 0;
             m_isPlaying = false;
