@@ -25,8 +25,9 @@ pkg_check_modules(TAGLIB REQUIRED taglib)
 find_library(BASS_LIB NAMES bass PATHS ${CMAKE_CURRENT_SOURCE_DIR}/lib NO_DEFAULT_PATH)
 find_library(BASS_AAC_LIB NAMES bass_aac PATHS ${CMAKE_CURRENT_SOURCE_DIR}/lib NO_DEFAULT_PATH)
 find_library(BASS_FLAC_LIB NAMES bassflac PATHS ${CMAKE_CURRENT_SOURCE_DIR}/lib NO_DEFAULT_PATH)
+find_library(DISCORD_RPC_LIB NAMES discord-rpc PATHS ${CMAKE_CURRENT_SOURCE_DIR}/discord-rpc/linux-static/lib NO_DEFAULT_PATH)
 
-include_directories(include ${SQLITE3_INCLUDE_DIRS} ${TAGLIB_INCLUDE_DIRS})
+include_directories(include ${SQLITE3_INCLUDE_DIRS} ${TAGLIB_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR}/discord-rpc/linux-static/include)
 
 add_executable(musicplayer
     src/main.cpp
@@ -45,6 +46,8 @@ target_link_libraries(musicplayer PRIVATE
     ${BASS_LIB}
     ${BASS_AAC_LIB}
     ${BASS_FLAC_LIB}
+    ${DISCORD_RPC_LIB}
+    pthread
     m
 )
 
