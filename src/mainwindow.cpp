@@ -265,9 +265,15 @@ MainWindow::MainWindow(QWidget *parent)
     if (!m_config->library_path.empty()) {
         startAsyncScan(QString::fromStdString(m_config->library_path));
     }
+
+    // Initialize Discord RPC
+    initDiscordRPC();
+    updateDiscordRPC(nullptr);
 }
 
 MainWindow::~MainWindow() {
+    shutdownDiscordRPC();
+
     if (m_scanThread && m_scanThread->isRunning()) {
         m_scanThread->quit();
         m_scanThread->wait(3000);
@@ -887,6 +893,9 @@ void MainWindow::playSong(Song *song) {
             
             // Refresh queue selection highlight
             refreshQueueList();
+
+            // Update Discord Rich Presence
+            updateDiscordRPC(song);
         }
     } else {
         QMessageBox::critical(this, "Playback Error", "Failed to play: " + QString::fromStdString(song->filepath));
@@ -899,10 +908,14 @@ void MainWindow::onPlayPauseClicked() {
             BASS_ChannelPause(m_playStream);
             m_isPlaying = false;
             m_playPauseBtn->setIcon(recolorIcon("media-playback-start", QColor("#e4e4e7"), 18));
+            updateDiscordRPC(nullptr);
         } else {
             if (BASS_ChannelPlay(m_playStream, FALSE)) {
                 m_isPlaying = true;
                 m_playPauseBtn->setIcon(recolorIcon("media-playback-pause", QColor("#38bdf8"), 18));
+                if (m_currentQueueIndex >= 0 && m_currentQueueIndex < m_queue.size()) {
+                    updateDiscordRPC(m_queue.at(m_currentQueueIndex));
+                }
             }
         }
     } else if (!m_queue.isEmpty()) {
@@ -1015,6 +1028,10 @@ void MainWindow::onSeekChanged(int value) {
 }
 
 void MainWindow::onPositionTimer() {
+    if (m_discordRpcActive) {
+        Discord_RunCallbacks();
+    }
+
     if (m_scanIsRunning) {
         int total = m_scanTotalCount.load(std::memory_order_relaxed);
         int scanned = m_scanScannedCount.load(std::memory_order_relaxed);
@@ -1056,6 +1073,7 @@ void MainWindow::onPositionTimer() {
             m_seekScale->blockSignals(true);
             m_seekScale->setValue(0);
             m_seekScale->blockSignals(false);
+            updateDiscordRPC(nullptr);
         } else {
             onNextClicked();
         }
@@ -1917,4 +1935,51 @@ void MainWindow::onRecentAlbumClicked(Album *album) {
     m_selectedArtist = artistName;
     m_selectedAlbum = album;
     populateArtistTrackList(album);
+}
+
+// -------------------------------------------------------------
+// Discord Rich Presence Integration
+// -------------------------------------------------------------
+
+void MainWindow::initDiscordRPC() {
+    DiscordEventHandlers handlers;
+    memset(&handlers, 0, sizeof(handlers));
+    // Registered Application ID for Music Player (or fallback)
+    Discord_Initialize("1330000000000000000", &handlers, 1, NULL);
+    m_discordRpcActive = true;
+}
+
+void MainWindow::updateDiscordRPC(Song *song) {
+    if (!m_discordRpcActive) return;
+    
+    DiscordRichPresence discordPresence;
+    memset(&discordPresence, 0, sizeof(discordPresence));
+    
+    if (song && m_isPlaying) {
+        discordPresence.details = song->title.c_str();
+        discordPresence.state = song->artist.c_str();
+        discordPresence.largeImageKey = "app_logo";
+        discordPresence.largeImageText = song->album.empty() ? "Music Player" : song->album.c_str();
+        discordPresence.smallImageKey = "play";
+        discordPresence.smallImageText = "Playing";
+        double secPos = m_playStream ? BASS_ChannelBytes2Seconds(m_playStream, BASS_ChannelGetPosition(m_playStream, BASS_POS_BYTE)) : 0.0;
+        discordPresence.startTimestamp = time(NULL) - static_cast<int64_t>(secPos);
+    } else {
+        discordPresence.details = "Idle";
+        discordPresence.state = "Music Player v2";
+        discordPresence.largeImageKey = "app_logo";
+        discordPresence.largeImageText = "Music Player v2";
+        discordPresence.smallImageKey = "pause";
+        discordPresence.smallImageText = "Paused";
+    }
+    
+    Discord_UpdatePresence(&discordPresence);
+}
+
+void MainWindow::shutdownDiscordRPC() {
+    if (m_discordRpcActive) {
+        Discord_ClearPresence();
+        Discord_Shutdown();
+        m_discordRpcActive = false;
+    }
 }
