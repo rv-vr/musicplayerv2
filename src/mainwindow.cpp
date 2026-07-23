@@ -487,17 +487,13 @@ void MainWindow::setupUI() {
     m_tabs->tabBar()->hide();
 
     // -------------------------------------------------------------
-    // SUB-HEADER BAR (iTunes 11 Category & Store Bar)
+    // SUB-HEADER BAR (Segmented Navigation Bar)
     // -------------------------------------------------------------
     m_subHeaderBar = new QWidget(m_centralWidget);
     m_subHeaderBar->setObjectName("subHeaderBar");
     QHBoxLayout *subHeaderLayout = new QHBoxLayout(m_subHeaderBar);
     subHeaderLayout->setContentsMargins(14, 0, 14, 0);
     subHeaderLayout->setSpacing(10);
-
-    QPushButton *mediaTypeBtn = new QPushButton("🎵  Music  ▾", m_subHeaderBar);
-    mediaTypeBtn->setObjectName("mediaTypeBtn");
-    subHeaderLayout->addWidget(mediaTypeBtn);
 
     m_navTabBar = new QTabBar(m_subHeaderBar);
     m_navTabBar->setObjectName("navTabBar");
@@ -514,10 +510,6 @@ void MainWindow::setupUI() {
     subHeaderLayout->addStretch();
     subHeaderLayout->addWidget(m_navTabBar);
     subHeaderLayout->addStretch();
-
-    QPushButton *storeBtn = new QPushButton("iTunes Store", m_subHeaderBar);
-    storeBtn->setObjectName("storeBtn");
-    subHeaderLayout->addWidget(storeBtn);
 
     mainLayout->addWidget(m_subHeaderBar);
     mainLayout->addWidget(m_tabs, 1);
@@ -1911,7 +1903,7 @@ void MainWindow::onSearchResultActivated(const QModelIndex &index) {
 void MainWindow::onRecentAlbumClicked(Album *album) {
     if (!album) return;
     
-    m_tabs->setCurrentIndex(0);
+    m_tabs->setCurrentIndex(1);
     
     QString artistName = QString::fromStdString(album->artist);
     m_artistList->blockSignals(true);
