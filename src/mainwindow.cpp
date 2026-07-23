@@ -2026,37 +2026,125 @@ void MainWindow::initDiscordRPC() {
         }
     };
 
-    Discord_Initialize("1330000000000000000", &handlers, 1, NULL);
+    Discord_Initialize("1529778938983743578", &handlers, 1, NULL);
     m_discordRpcActive = true;
+}
+
+void MainWindow::fetchAlbumArtUrl(const QString &artist, const QString &album, std::function<void(const QString&)> callback) {
+    if (artist.isEmpty() || album.isEmpty()) {
+        callback(QString());
+        return;
+    }
+    
+    QString cacheKey = artist.trimmed() + " - " + album.trimmed();
+    if (m_albumArtUrlCache.contains(cacheKey)) {
+        callback(m_albumArtUrlCache.value(cacheKey));
+        return;
+    }
+    
+    if (!m_netManager) {
+        m_netManager = new QNetworkAccessManager(this);
+    }
+    
+    QString queryTerm = artist + " " + album;
+    QUrl url("https://itunes.apple.com/search");
+    QUrlQuery query;
+    query.addQueryItem("term", queryTerm);
+    query.addQueryItem("entity", "album");
+    query.addQueryItem("limit", "1");
+    url.setQuery(query);
+    
+    QNetworkRequest request(url);
+    request.setHeader(QNetworkRequest::UserAgentHeader, "MusicPlayer/2.0");
+    
+    QNetworkReply *reply = m_netManager->get(request);
+    connect(reply, &QNetworkReply::finished, this, [this, reply, cacheKey, callback]() {
+        reply->deleteLater();
+        if (reply->error() != QNetworkReply::NoError) {
+            m_albumArtUrlCache.insert(cacheKey, QString());
+            callback(QString());
+            return;
+        }
+        
+        QByteArray data = reply->readAll();
+        QJsonDocument doc = QJsonDocument::fromJson(data);
+        if (!doc.isObject()) {
+            m_albumArtUrlCache.insert(cacheKey, QString());
+            callback(QString());
+            return;
+        }
+        
+        QJsonObject obj = doc.object();
+        QJsonArray results = obj["results"].toArray();
+        if (results.isEmpty()) {
+            m_albumArtUrlCache.insert(cacheKey, QString());
+            callback(QString());
+            return;
+        }
+        
+        QJsonObject firstResult = results.first().toObject();
+        QString artworkUrl = firstResult["artworkUrl100"].toString();
+        if (!artworkUrl.isEmpty()) {
+            artworkUrl.replace("100x100bb", "500x500bb");
+            artworkUrl.replace("100x100", "500x500");
+            m_albumArtUrlCache.insert(cacheKey, artworkUrl);
+            callback(artworkUrl);
+        } else {
+            m_albumArtUrlCache.insert(cacheKey, QString());
+            callback(QString());
+        }
+    });
 }
 
 void MainWindow::updateDiscordRPC(Song *song) {
     if (!m_discordRpcActive) return;
     
-    DiscordRichPresence discordPresence;
-    memset(&discordPresence, 0, sizeof(discordPresence));
-    
     if (song && m_isPlaying) {
-        discordPresence.details = song->title.c_str();
-        discordPresence.state = song->artist.c_str();
-        discordPresence.largeImageKey = NULL;
-        discordPresence.largeImageText = song->album.empty() ? "Music Player" : song->album.c_str();
-        discordPresence.smallImageKey = NULL;
-        discordPresence.smallImageText = "Playing";
-        double secPos = m_playStream ? BASS_ChannelBytes2Seconds(m_playStream, BASS_ChannelGetPosition(m_playStream, BASS_POS_BYTE)) : 0.0;
-        discordPresence.startTimestamp = time(NULL) - static_cast<int64_t>(secPos);
-        logDiscordRpc(QString("Presence updated: Playing \"%1\" by %2").arg(song->title.c_str()).arg(song->artist.c_str()));
+        QString artistStr = QString::fromStdString(song->artist);
+        QString albumStr = QString::fromStdString(song->album);
+        QString titleStr = QString::fromStdString(song->title);
+        
+        fetchAlbumArtUrl(artistStr, albumStr, [this, titleStr, artistStr, albumStr](const QString &artUrl) {
+            DiscordRichPresence discordPresence;
+            memset(&discordPresence, 0, sizeof(discordPresence));
+            
+            QByteArray titleBytes = titleStr.toUtf8();
+            QByteArray artistBytes = artistStr.toUtf8();
+            QByteArray albumBytes = albumStr.isEmpty() ? "Music Player" : albumStr.toUtf8();
+            QByteArray artBytes = artUrl.toUtf8();
+            
+            discordPresence.details = titleBytes.constData();
+            discordPresence.state = artistBytes.constData();
+            discordPresence.largeImageText = albumBytes.constData();
+            if (!artUrl.isEmpty()) {
+                discordPresence.largeImageKey = artBytes.constData();
+            } else {
+                discordPresence.largeImageKey = NULL;
+            }
+            discordPresence.smallImageKey = NULL;
+            discordPresence.smallImageText = "Playing";
+            
+            double secPos = m_playStream ? BASS_ChannelBytes2Seconds(m_playStream, BASS_ChannelGetPosition(m_playStream, BASS_POS_BYTE)) : 0.0;
+            discordPresence.startTimestamp = time(NULL) - static_cast<int64_t>(secPos);
+            
+            Discord_UpdatePresence(&discordPresence);
+            logDiscordRpc(QString("Presence updated: Playing \"%1\" by %2 %3")
+                .arg(titleStr)
+                .arg(artistStr)
+                .arg(artUrl.isEmpty() ? "" : "(Art: " + artUrl + ")"));
+        });
     } else {
+        DiscordRichPresence discordPresence;
+        memset(&discordPresence, 0, sizeof(discordPresence));
         discordPresence.details = "Idle";
         discordPresence.state = "Music Player v2";
         discordPresence.largeImageKey = NULL;
         discordPresence.largeImageText = "Music Player v2";
         discordPresence.smallImageKey = NULL;
         discordPresence.smallImageText = "Paused";
+        Discord_UpdatePresence(&discordPresence);
         logDiscordRpc("Presence updated: Idle");
     }
-    
-    Discord_UpdatePresence(&discordPresence);
 }
 
 void MainWindow::shutdownDiscordRPC() {
